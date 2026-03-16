@@ -10,6 +10,9 @@ import {
   ShieldOff, 
   Coins, 
   Eye,
+  IndianRupee,
+  Clock,
+  Star,
   CheckCircle2,
   XCircle,
   MoreVertical
@@ -21,6 +24,10 @@ interface User {
   username?: string;
   role: 'man' | 'woman';
   coins: number;
+  allTimeEarnings?: number;
+  totalCalls?: number;
+  talkTime?: number;
+  rating?: number;
   phone: string;
   isOnline: boolean;
   isBlocked?: boolean;
@@ -98,6 +105,14 @@ export default function UserTable({ initialUsers }: { initialUsers: User[] }) {
         </div>
 
         <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0">
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 transition-all flex items-center gap-2"
+          >
+            <Filter className="w-3.5 h-3.5" />
+            Refresh
+          </button>
+          <div className="w-[1px] h-4 bg-white/10 mx-2" />
           {(['all', 'man', 'woman', 'blocked'] as const).map((f) => (
             <button
               key={f}
@@ -154,12 +169,34 @@ export default function UserTable({ initialUsers }: { initialUsers: User[] }) {
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-2">
                       <div className="flex items-center gap-1.5 text-orange-400 font-bold text-sm">
                         <Coins className="w-3.5 h-3.5" />
-                        {user.coins.toLocaleString()} <span className="text-[10px] opacity-70">Gold</span>
+                        {user.coins.toLocaleString()} <span className="text-[10px] opacity-70 italic">Current</span>
                       </div>
-                      <p className="text-gray-500 text-xs font-medium">{user.phone}</p>
+                      
+                      {user.role === 'woman' && (
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                          <div className="flex items-center gap-1 text-[10px] text-green-400 font-bold">
+                            <IndianRupee className="w-2.5 h-2.5" />
+                            {user.allTimeEarnings || 0} Total
+                          </div>
+                          <div className="flex items-center gap-1 text-[10px] text-blue-400 font-bold">
+                            <Eye className="w-2.5 h-2.5" />
+                            {user.totalCalls || 0} Calls
+                          </div>
+                          <div className="flex items-center gap-1 text-[10px] text-purple-400 font-bold">
+                            <Clock className="w-2.5 h-2.5" />
+                            {user.talkTime || 0} Min
+                          </div>
+                           <div className="flex items-center gap-1 text-[10px] text-yellow-400 font-bold">
+                            <Shield className="w-2.5 h-2.5" />
+                            {(user.rating || 0).toFixed(1)} ⭐
+                          </div>
+                        </div>
+                      )}
+                      
+                      <p className="text-gray-500 text-[10px] font-medium">{user.phone}</p>
                     </div>
                   </td>
                   <td className="px-6 py-4">

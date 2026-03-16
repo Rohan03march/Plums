@@ -475,7 +475,7 @@ export const recordCallRecord = async (record: Omit<CallRecord, 'id'>) => {
       addDoc(collection(firebaseDb, 'Transactions'), {
         userId: record.callerId,
         coins: record.cost,
-        amountInRupees: record.cost,
+        amountInRupees: record.cost / 10,
         type: 'call_spend',
         status: 'success',
         timestamp,
@@ -484,7 +484,7 @@ export const recordCallRecord = async (record: Omit<CallRecord, 'id'>) => {
       addDoc(collection(firebaseDb, 'Transactions'), {
         userId: record.receiverId,
         coins: record.cost,
-        amountInRupees: record.cost,
+        amountInRupees: record.cost / 10,
         type: 'call_earn',
         status: 'success',
         timestamp,

@@ -1,19 +1,20 @@
 import React from 'react';
 import { adminDb } from '@/../lib/firebaseAdmin';
-import { 
-  Users, 
-  PhoneCall, 
-  IndianRupee, 
-  TrendingUp, 
-  ArrowUpRight, 
+import {
+  Users,
+  PhoneCall,
+  IndianRupee,
+  TrendingUp,
+  ArrowUpRight,
   ArrowDownRight,
-  Activity
+  Activity,
+  Coins
 } from 'lucide-react';
 import DashboardCharts from '@/components/DashboardCharts';
 
 async function getDashboardStats() {
   try {
-    if (!adminDb) return { users: 0, calls: 0, revenue: 0, txCount: 0, connected: false };
+    if (!adminDb) return { users: 0, calls: 0, revenue: 0, gold: 0, txCount: 0, connected: false };
 
     const [usersSnap, callsSnap, txSnap] = await Promise.all([
       adminDb.collection("Users").count().get(),
@@ -22,17 +23,22 @@ async function getDashboardStats() {
     ]);
 
     const totalRevenue = txSnap.docs.reduce((acc, doc) => acc + (doc.data().amountInRupees || 0), 0);
-    
+
+    // Sum total gold from all users
+    const allUsersSnap = await adminDb.collection("Users").select("coins").get();
+    const totalGold = allUsersSnap.docs.reduce((acc, doc) => acc + (doc.data().coins || 0), 0);
+
     return {
       users: usersSnap.data().count,
       calls: callsSnap.data().count,
       revenue: totalRevenue,
+      gold: totalGold,
       txCount: txSnap.size,
       connected: true,
     };
   } catch (error) {
     console.error("Dashboard data fetch error:", error);
-    return { users: 0, calls: 0, revenue: 0, txCount: 0, connected: false };
+    return { users: 0, calls: 0, revenue: 0, gold: 0, txCount: 0, connected: false };
   }
 }
 
@@ -63,6 +69,14 @@ export default async function AdminDashboard() {
       isUp: false, 
       icon: PhoneCall,
       color: 'orange' 
+    },
+    { 
+      title: 'Total Gold (Circulating)', 
+      value: stats.gold.toLocaleString(), 
+      change: 'Market Cap', 
+      isUp: true, 
+      icon: Coins,
+      color: 'yellow'
     },
     { 
       title: 'Active Sessions', 

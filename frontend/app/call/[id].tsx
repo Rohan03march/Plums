@@ -37,6 +37,7 @@ export default function CallRoom() {
   const [giftNotification, setGiftNotification] = useState<string | null>(null);
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [userRating, setUserRating] = useState(0);
+  const [hasCallStarted, setHasCallStarted] = useState(false);
   
   const engine = useRef<IRtcEngine | null>(null);
   const billingCountRef = useRef(0);
@@ -108,6 +109,7 @@ export default function CallRoom() {
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (session?.status === 'accepted') {
+      setHasCallStarted(true);
       interval = setInterval(() => {
         setSeconds(prev => prev + 1);
       }, 1000) as any;
@@ -153,7 +155,7 @@ export default function CallRoom() {
         return;
       }
       if (updatedSession.status === 'ended') {
-        if (role === 'caller' && seconds > 0) {
+        if (role === 'caller' && hasCallStarted) {
           setShowRatingModal(true);
         } else {
           router.replace(role === 'caller' ? '/(men)' : '/(women)');
@@ -216,7 +218,7 @@ export default function CallRoom() {
     engine.current?.release();
     engine.current = null;
 
-    if (role === 'caller' && seconds > 0) {
+    if (role === 'caller' && hasCallStarted) {
       setShowRatingModal(true);
     } else {
       router.back();

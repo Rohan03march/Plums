@@ -13,10 +13,14 @@ async function getCallHistory() {
       .limit(50)
       .get();
       
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    })) as any[];
+    return snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        timestamp: data.timestamp?.toDate ? data.timestamp.toDate().toISOString() : data.timestamp
+      };
+    });
   } catch (error) {
     console.error("Error fetching call history:", error);
     return [];

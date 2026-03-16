@@ -9,10 +9,14 @@ async function getUsers() {
     
     // Fetch all users from Firestore
     const snapshot = await adminDb.collection("Users").get();
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    })) as any[];
+    return snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : data.createdAt
+      };
+    }) as any[];
   } catch (error) {
     console.error("Error fetching users:", error);
     return [];

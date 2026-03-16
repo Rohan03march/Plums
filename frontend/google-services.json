@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "565062451892",
+    "project_id": "callapp-pro-3e1a0",
+    "storage_bucket": "callapp-pro-3e1a0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:565062451892:android:732913b95c38fa7cb34de1",
+        "android_client_info": {
+          "package_name": "com.rohan.callapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB9Mmx73OVzGXwBiURLq9CSRYfDZ6jGnsQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

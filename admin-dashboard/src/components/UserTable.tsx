@@ -1,6 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { collection, query, onSnapshot } from 'firebase/firestore';
+import { db } from '@/../lib/firebase';
 import { 
   Search, 
   Filter, 
@@ -39,6 +41,21 @@ export default function UserTable({ initialUsers }: { initialUsers: User[] }) {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'man' | 'woman' | 'blocked'>('all');
   const [loading, setLoading] = useState<string | null>(null);
+
+  useEffect(() => {
+    const q = query(collection(db, 'Users'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const usersData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as User[];
+      setUsers(usersData);
+    }, (error) => {
+      console.error("UserTable Snapshot Error:", error);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const filteredUsers = users.filter((u) => {
     const matchesSearch = (u.displayName?.toLowerCase().includes(search.toLowerCase()) || 
@@ -105,13 +122,10 @@ export default function UserTable({ initialUsers }: { initialUsers: User[] }) {
         </div>
 
         <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0">
-          <button
-            onClick={() => window.location.reload()}
-            className="px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 transition-all flex items-center gap-2"
-          >
-            <Filter className="w-3.5 h-3.5" />
-            Refresh
-          </button>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-green-500/10 border border-green-500/20">
+            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+            <span className="text-[10px] font-bold text-green-500 uppercase tracking-wider">Live Sync</span>
+          </div>
           <div className="w-[1px] h-4 bg-white/10 mx-2" />
           {(['all', 'man', 'woman', 'blocked'] as const).map((f) => (
             <button

@@ -1,6 +1,8 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { db } from '@/../lib/firebase';
 import { Search, Clock, CheckCircle2, XCircle, Banknote, QrCode, Building2, User } from 'lucide-react';
 import PayoutActions from './PayoutActions';
 
@@ -11,22 +13,43 @@ interface PayoutListContainerProps {
 export default function PayoutListContainer({ initialPayouts }: PayoutListContainerProps) {
   const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [payouts, setPayouts] = useState<any[]>(initialPayouts || []);
+
+  useEffect(() => {
+    const q = query(collection(db, 'PayoutRequests'), orderBy('createdAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const payoutsData = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          createdAt: data.createdAt?.toDate().toLocaleString() || 'N/A',
+          updatedAt: data.updatedAt?.toDate().toLocaleString() || null
+        };
+      });
+      setPayouts(payoutsData);
+    }, (error) => {
+      console.error("PayoutList Snapshot Error:", error);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const filteredPayouts = useMemo(() => {
-    return initialPayouts.filter((p) => {
+    return payouts.filter((p) => {
       const matchesStatus = activeTab === 'all' || p.status === activeTab;
       const matchesSearch = p.userName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           p.details?.upiId?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           p.details?.accountNumber?.includes(searchQuery);
       return matchesStatus && matchesSearch;
     });
-  }, [initialPayouts, activeTab, searchQuery]);
+  }, [payouts, activeTab, searchQuery]);
 
   const stats = {
-    all: initialPayouts.length,
-    pending: initialPayouts.filter(p => p.status === 'pending').length,
-    approved: initialPayouts.filter(p => p.status === 'approved').length,
-    rejected: initialPayouts.filter(p => p.status === 'rejected').length,
+    all: payouts.length,
+    pending: payouts.filter(p => p.status === 'pending').length,
+    approved: payouts.filter(p => p.status === 'approved').length,
+    rejected: payouts.filter(p => p.status === 'rejected').length,
   };
 
   const getAvatarPath = (avatarId: string | undefined) => {

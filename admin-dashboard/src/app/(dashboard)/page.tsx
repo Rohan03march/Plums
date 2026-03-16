@@ -1,16 +1,11 @@
 import React from 'react';
 import { adminDb } from '@/../lib/firebaseAdmin';
 import {
-  Users,
-  PhoneCall,
-  IndianRupee,
   TrendingUp,
-  ArrowUpRight,
-  ArrowDownRight,
-  Activity,
-  Coins
+  Activity
 } from 'lucide-react';
 import DashboardCharts from '@/components/DashboardCharts';
+import RealtimeStats from '@/components/RealtimeStats';
 
 async function getDashboardStats() {
   try {
@@ -45,49 +40,6 @@ async function getDashboardStats() {
 export default async function AdminDashboard() {
   const stats = await getDashboardStats();
 
-  const cards = [
-    { 
-      title: 'Total Users', 
-      value: stats.users.toLocaleString(), 
-      change: '+12.5%', 
-      isUp: true, 
-      icon: Users,
-      color: 'pink'
-    },
-    { 
-      title: 'Total Revenue', 
-      value: `₹${stats.revenue.toLocaleString()}`, 
-      change: '+18.2%', 
-      isUp: true, 
-      icon: IndianRupee,
-      color: 'blue'
-    },
-    { 
-      title: 'Calls Completed', 
-      value: stats.calls.toLocaleString(), 
-      change: '-2.4%', 
-      isUp: false, 
-      icon: PhoneCall,
-      color: 'orange' 
-    },
-    { 
-      title: 'Total Gold (Circulating)', 
-      value: stats.gold.toLocaleString(), 
-      change: 'Market Cap', 
-      isUp: true, 
-      icon: Coins,
-      color: 'yellow'
-    },
-    { 
-      title: 'Active Sessions', 
-      value: '24', 
-      change: '+4', 
-      isUp: true, 
-      icon: Activity,
-      color: 'green'
-    },
-  ];
-
   return (
     <div className="space-y-10">
       <header>
@@ -99,33 +51,13 @@ export default async function AdminDashboard() {
         <p className="text-gray-500 mt-1">Real-time performance metrics and user engagement insights.</p>
       </header>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {cards.map((card, idx) => (
-          <div key={idx} className="bg-white/5 border border-white/10 p-6 rounded-3xl group hover:border-white/20 transition-all relative overflow-hidden">
-            <div className={`absolute top-0 right-0 w-24 h-24 bg-${card.color}-500/5 rounded-full -mr-8 -mt-8 blur-2xl group-hover:bg-${card.color}-500/10 transition-all`} />
-            
-            <div className="flex items-center justify-between mb-4">
-              <div className={`p-3 rounded-2xl bg-${card.color}-500/10 text-${card.color}-500`}>
-                <card.icon className="w-6 h-6" />
-              </div>
-              <div className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold ${card.isUp ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
-                {card.isUp ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                {card.change}
-              </div>
-            </div>
-
-            <p className="text-gray-500 text-sm font-medium">{card.title}</p>
-            <h3 className="text-3xl font-bold text-white mt-1">{card.value}</h3>
-          </div>
-        ))}
-      </div>
+      <RealtimeStats initialStats={stats} />
 
       <DashboardCharts />
 
       {/* Recent Activity Section */}
       <section className="bg-white/5 border border-white/10 rounded-3xl p-8 shadow-xl">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-8 text-center sm:text-left">
           <div>
             <h3 className="text-xl font-bold text-white">Live System Status</h3>
             <p className="text-gray-500 text-sm">Monitor database connectivity and background processes.</p>

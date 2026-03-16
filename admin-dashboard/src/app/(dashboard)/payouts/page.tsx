@@ -26,11 +26,16 @@ async function getPayoutRequests() {
 
       return {
         id: payoutDoc.id,
-        ...data,
+        userId: data.userId,
+        amount: data.amount,
+        coins: data.coins,
+        status: data.status,
+        method: data.method,
+        paymentDetails: data.paymentDetails || {},
         userName,
         userAvatar,
-        createdAt: data.createdAt?.toDate().toLocaleString() || 'N/A',
-        updatedAt: data.updatedAt?.toDate().toLocaleString() || null
+        createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : (data.createdAt || 'N/A'),
+        updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate().toISOString() : (data.updatedAt || null)
       };
     }));
 

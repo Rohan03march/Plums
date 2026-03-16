@@ -13,8 +13,19 @@ async function getUsers() {
       const data = doc.data();
       return {
         id: doc.id,
-        ...data,
-        createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : data.createdAt
+        displayName: data.displayName || data.name || 'Anonymous',
+        email: data.email || '',
+        photoURL: data.photoURL || data.avatar || null,
+        role: data.role || 'user',
+        coins: data.coins || 0,
+        allTimeEarnings: data.allTimeEarnings || 0,
+        totalCalls: data.totalCalls || 0,
+        talkTime: data.talkTime || 0,
+        rating: data.rating || 0,
+        isBlocked: data.isBlocked || false,
+        isOnline: data.isOnline || false,
+        lastSeen: data.lastSeen?.toDate ? data.lastSeen.toDate().toISOString() : (data.lastSeen || null),
+        createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : (data.createdAt || null)
       };
     }) as any[];
   } catch (error) {

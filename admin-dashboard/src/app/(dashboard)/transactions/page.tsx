@@ -16,8 +16,14 @@ async function getTransactions() {
       const data = doc.data();
       return {
         id: doc.id,
-        ...data,
-        timestamp: data.timestamp?.toDate ? data.timestamp.toDate().toISOString() : data.timestamp
+        userId: data.userId,
+        coins: data.coins,
+        amountInRupees: data.amountInRupees,
+        type: data.type,
+        status: data.status,
+        description: data.description || '',
+        timestamp: data.timestamp?.toDate ? data.timestamp.toDate().toISOString() : data.timestamp,
+        updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate().toISOString() : (data.updatedAt || null),
       };
     });
   } catch (error) {

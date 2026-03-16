@@ -11,7 +11,7 @@ async function getDashboardStats() {
   try {
     if (!adminDb) return { users: 0, calls: 0, revenue: 0, gold: 0, txCount: 0, connected: false };
 
-    const [usersSnap, callsSnap, txSnap] = await Promise.all([
+    const [usersCountSnap, callsCountSnap, txSnap] = await Promise.all([
       adminDb.collection("Users").count().get(),
       adminDb.collection("CallHistory").count().get(),
       adminDb.collection("Transactions").where("status", "==", "success").get()
@@ -24,8 +24,8 @@ async function getDashboardStats() {
     const totalGold = allUsersSnap.docs.reduce((acc, doc) => acc + (doc.data().coins || 0), 0);
 
     return {
-      users: usersSnap.data().count,
-      calls: callsSnap.data().count,
+      users: usersCountSnap.data().count,
+      calls: callsCountSnap.data().count,
       revenue: totalRevenue,
       gold: totalGold,
       txCount: txSnap.size,

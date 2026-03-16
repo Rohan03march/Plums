@@ -10,6 +10,8 @@ import { AuthProvider, useAuth } from '../context/AuthContext';
 import IncomingCallModal from '../components/IncomingCallModal';
 import { subscribeToIncomingCalls, updateCallSession, CallSession } from '../services/firebaseService';
 import { useRouter } from 'expo-router';
+import { CallProvider, useCall } from '../context/CallContext';
+import FloatingCallPreview from '../components/FloatingCallPreview';
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
@@ -17,6 +19,7 @@ SplashScreen.preventAutoHideAsync();
 function AppView({ onLayoutRootView }: { onLayoutRootView: () => Promise<void> }) {
   const { isDark, colors } = useTheme();
   const { appUser, user } = useAuth();
+  const { startCall } = useCall();
   const [incomingCall, setIncomingCall] = useState<CallSession | null>(null);
   const router = useRouter();
 
@@ -33,8 +36,10 @@ function AppView({ onLayoutRootView }: { onLayoutRootView: () => Promise<void> }
     if (incomingCall) {
       await updateCallSession(incomingCall.id, 'accepted');
       const sessionId = incomingCall.id;
+      const type = incomingCall.type;
       setIncomingCall(null);
-      router.push({ pathname: '/call/[id]', params: { id: sessionId, role: 'receiver', type: incomingCall.type } });
+      await startCall(sessionId, 'receiver', type);
+      router.push({ pathname: '/call/[id]', params: { id: sessionId, role: 'receiver', type } });
     }
   };
 
@@ -64,6 +69,8 @@ function AppView({ onLayoutRootView }: { onLayoutRootView: () => Promise<void> }
         onAccept={handleAccept}
         onReject={handleReject}
       />
+
+      <FloatingCallPreview />
     </View>
   );
 }
@@ -118,7 +125,9 @@ export default function RootLayout() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <AppView onLayoutRootView={onLayoutRootView} />
+        <CallProvider>
+          <AppView onLayoutRootView={onLayoutRootView} />
+        </CallProvider>
       </AuthProvider>
     </ThemeProvider>
   );

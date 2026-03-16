@@ -4,7 +4,8 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
-import { subscribeToCallSession, updateCallSession, CallSession, getAvatarSource, executeCallTransfer, recordCallRecord, blockUser, sendGift, toggleFavorite, updateCallSessionMeta, updateCreatorRating } from '../../services/firebaseService';
+import { useCall } from '../../context/CallContext';
+import { updateCallSession, getAvatarSource, blockUser, sendGift, toggleFavorite, updateCallSessionMeta } from '../../services/firebaseService';
 import { Modal } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import createAgoraRtcEngine, {
@@ -24,150 +25,39 @@ export default function CallRoom() {
   const { id, role, type } = useLocalSearchParams();
   const { colors, isDark } = useTheme();
   const { appUser } = useAuth();
+  const { 
+    activeCall: session, 
+    seconds, 
+    remoteUid, 
+    isMuted, 
+    isSpeaker,
+    showRatingModal,
+    userRating,
+    engine,
+    startCall,
+    endCall,
+    minimizeCall,
+    toggleMute,
+    toggleSpeaker,
+    setUserRating,
+    submitRating: submitRatingFromContext,
+    skipRating
+  } = useCall();
   
-  const [joined, setJoined] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
-  const [isSpeaker, setIsSpeaker] = useState(true);
-  const [loading, setLoading] = useState(true);
-  const [session, setSession] = useState<CallSession | null>(null);
-  const [seconds, setSeconds] = useState(0);
-  const [remoteUid, setRemoteUid] = useState<number | null>(null);
+  const [loading, setLoading] = useState(!session);
   const [showGiftOptions, setShowGiftOptions] = useState(false);
   const [isBestie, setIsBestie] = useState(false);
   const [giftNotification, setGiftNotification] = useState<string | null>(null);
-  const [showRatingModal, setShowRatingModal] = useState(false);
-  const [userRating, setUserRating] = useState(0);
-  const [hasCallStarted, setHasCallStarted] = useState(false);
-  
-  const engine = useRef<IRtcEngine | null>(null);
-  const billingCountRef = useRef(0);
 
-  // Initialize Agora
+  // Initialize Call if not already active
   useEffect(() => {
-    const init = async () => {
-      try {
-        if (!AGORA_APP_ID) {
-          console.error('Agora App ID is missing');
-          return;
-        }
-
-        engine.current = createAgoraRtcEngine();
-        engine.current.initialize({
-          appId: AGORA_APP_ID,
-          channelProfile: ChannelProfileType.ChannelProfileCommunication,
-        });
-
-        engine.current.registerEventHandler({
-        onJoinChannelSuccess: (connection: RtcConnection, elapsed: number) => {
-          console.log('[Agora] onJoinChannelSuccess', connection.channelId, elapsed);
-          setJoined(true);
-          setLoading(false);
-        },
-        onUserJoined: (connection: RtcConnection, remoteUid: number, elapsed: number) => {
-          console.log('[Agora] onUserJoined', remoteUid);
-          setRemoteUid(remoteUid);
-        },
-        onUserOffline: (connection: RtcConnection, remoteUid: number, reason: UserOfflineReasonType) => {
-          console.log('[Agora] onUserOffline', remoteUid, reason);
-          setRemoteUid(null);
-          leaveCall();
-        },
-        onError: (err: any, msg: string) => {
-          console.error('[Agora] Error:', err, msg);
-        },
-        onLeaveChannel: (connection: RtcConnection, stats: any) => {
-          console.log('[Agora] onLeaveChannel', stats);
-        }
-      });
-
-        engine.current.enableAudio();
-        if (type === 'video') {
-          engine.current.enableVideo();
-          engine.current.startPreview();
-        }
-        
-        engine.current.joinChannel(null, id as string, 0, {
-          clientRoleType: ClientRoleType.ClientRoleBroadcaster,
-        });
-      } catch (e) {
-        console.error('Agora Init Error:', e);
-        setTimeout(() => {
-           setJoined(true);
-           setLoading(false);
-        }, 2000);
-      }
-    };
-
-    init();
-    return () => {
-      engine.current?.leaveChannel();
-      engine.current?.release();
-    };
-  }, [id]);
-
-  // Timer logic
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (session?.status === 'accepted') {
-      setHasCallStarted(true);
-      interval = setInterval(() => {
-        setSeconds(prev => prev + 1);
-      }, 1000) as any;
+    if (!session && id) {
+      startCall(id as string, role as 'caller' | 'receiver', type as 'audio' | 'video')
+        .then(() => setLoading(false));
+    } else {
+      setLoading(false);
     }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [session?.status]);
-
-  // Billing Logic
-  useEffect(() => {
-    if (role === 'caller' && session?.status === 'accepted') {
-      const amount = type === 'audio' ? 10 : 60;
-      const currentMinute = Math.floor(seconds / 60);
-      
-      if (currentMinute >= billingCountRef.current) {
-        if (appUser && appUser.coins < amount) {
-          Alert.alert('Insufficient Balance', 'Your call ended due to insufficient gold.');
-          leaveCall();
-          return;
-        }
-        const performDeduction = async () => {
-          const success = await executeCallTransfer(session.callerId, session.receiverId, amount, type as 'audio' | 'video');
-          if (success) {
-            billingCountRef.current += 1;
-          } else {
-            Alert.alert('Error', 'Billing failed. Ending call.');
-            leaveCall();
-          }
-        };
-        performDeduction();
-      }
-    }
-  }, [seconds, session?.status, role, appUser?.coins]);
-
-  // Session Subscription
-  useEffect(() => {
-    if (!id) return;
-    const unsubscribe = subscribeToCallSession(id as string, (updatedSession) => {
-      setSession(updatedSession);
-      if (!updatedSession) {
-        router.back();
-        return;
-      }
-      if (updatedSession.status === 'ended') {
-        if (role === 'caller' && hasCallStarted) {
-          setShowRatingModal(true);
-        } else {
-          router.replace(role === 'caller' ? '/(men)' : '/(women)');
-        }
-      }
-      if (updatedSession.status === 'rejected' && role === 'caller') {
-        Alert.alert('Call Declined', 'The creator declined the call.');
-        router.replace('/(men)');
-      }
-    });
-    return () => unsubscribe();
-  }, [id, role]);
+  }, [id, session]);
 
   // Bestie & Gift Notifications
   useEffect(() => {
@@ -181,50 +71,6 @@ export default function CallRoom() {
       setTimeout(() => setGiftNotification(null), 5000);
     }
   }, [appUser?.besties, session?.meta?.lastGift, role]);
-
-  const toggleMute = () => {
-    const nextMute = !isMuted;
-    setIsMuted(nextMute);
-    engine.current?.muteLocalAudioStream(nextMute);
-  };
-
-  const toggleSpeaker = () => {
-    const nextSpeaker = !isSpeaker;
-    setIsSpeaker(nextSpeaker);
-    engine.current?.setEnableSpeakerphone(nextSpeaker);
-  };
-
-  const leaveCall = async () => {
-    if (id) {
-       await updateCallSession(id as string, 'ended');
-       if (role === 'caller' && session && seconds > 0) {
-         const amount = type === 'audio' ? 10 : 60;
-         await recordCallRecord({
-           callerId: session.callerId,
-           callerName: session.callerName,
-           callerAvatar: session.callerAvatar,
-           receiverId: session.receiverId,
-           receiverName: session.receiverName,
-           receiverAvatar: session.receiverAvatar,
-           duration: formatHistoryDuration(seconds),
-           durationInMinutes: billingCountRef.current,
-           cost: Math.max(1, billingCountRef.current) * amount,
-           type: type as 'audio' | 'video',
-           timestamp: null
-         });
-       }
-    }
-    engine.current?.leaveChannel();
-    engine.current?.release();
-    engine.current = null;
-
-    if (role === 'caller' && hasCallStarted) {
-      setShowRatingModal(true);
-    } else {
-      router.back();
-    }
-  };
-
   const handleBlock = async () => {
     if (!session || !appUser) return;
     const targetId = role === 'caller' ? session.receiverId : session.callerId;
@@ -232,7 +78,7 @@ export default function CallRoom() {
       { text: "Cancel", style: "cancel" },
       { text: "Block", style: "destructive", onPress: async () => {
           await blockUser(appUser.id, targetId);
-          await leaveCall();
+          await endCall();
       }}
     ]);
   };
@@ -274,12 +120,6 @@ export default function CallRoom() {
     }
   };
 
-  const formatHistoryDuration = (secs: number) => {
-    const mins = Math.floor(secs / 60);
-    const s = secs % 60;
-    return mins > 0 ? `${mins}m ${s}s` : `${s}s`;
-  };
-
   const formatTime = (secs: number) => {
     const mins = Math.floor(secs / 60);
     const s = secs % 60;
@@ -287,10 +127,7 @@ export default function CallRoom() {
   };
 
   const submitRating = async () => {
-    if (!session || userRating === 0) return;
-    await updateCreatorRating(session.receiverId, userRating);
-    setShowRatingModal(false);
-    router.replace('/(men)');
+    await submitRatingFromContext();
   };
 
   return (
@@ -298,7 +135,7 @@ export default function CallRoom() {
       <LinearGradient colors={isDark ? ['rgba(255, 77, 103, 0.15)', colors.bg] : ['rgba(236, 72, 153, 0.1)', colors.bg]} style={StyleSheet.absoluteFillObject} />
       
       <View style={styles.header}>
-        <TouchableOpacity onPress={leaveCall} style={styles.backBtn}><Ionicons name="chevron-down" size={32} color={colors.text} /></TouchableOpacity>
+        <TouchableOpacity onPress={minimizeCall} style={styles.backBtn}><Ionicons name="chevron-down" size={32} color={colors.text} /></TouchableOpacity>
         <View style={styles.timerContainer}>
            <Text style={[styles.timerText, { color: colors.text }]}>{formatTime(seconds)}</Text>
            <View style={styles.liveIndicator} />
@@ -339,7 +176,7 @@ export default function CallRoom() {
                 <Image source={getAvatarSource(role === 'caller' ? session?.receiverAvatar : session?.callerAvatar, role === 'caller' ? 'woman' : 'man')} style={styles.audioAvatar} />
               </View>
               <Text style={[styles.userName, { color: colors.text }]}>{role === 'caller' ? session?.receiverName : session?.callerName}</Text>
-              {!remoteUid && joined && seconds === 0 && (
+              {!remoteUid && seconds === 0 && (
                 <View style={styles.connectingStatus}>
                   <ActivityIndicator size="small" color="#FF4D67" />
                   <Text style={styles.connectingText}>
@@ -370,7 +207,7 @@ export default function CallRoom() {
           <TouchableOpacity style={[styles.controlBtn, { backgroundColor: isMuted ? 'rgba(255, 77, 103, 0.2)' : colors.bg }]} onPress={toggleMute}>
             <Ionicons name={isMuted ? "mic-off" : "mic"} size={26} color={isMuted ? '#FF4D67' : colors.text} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.leaveBtn} onPress={leaveCall}>
+          <TouchableOpacity style={styles.leaveBtn} onPress={endCall}>
             <Ionicons name="call" size={30} color="#fff" style={{ transform: [{ rotate: '135deg' }] }} />
           </TouchableOpacity>
           <TouchableOpacity style={[styles.controlBtn, { backgroundColor: isSpeaker ? 'rgba(16, 185, 129, 0.2)' : colors.bg }]} onPress={toggleSpeaker}>
@@ -418,10 +255,7 @@ export default function CallRoom() {
 
             <TouchableOpacity 
               style={styles.skipBtn} 
-              onPress={() => {
-                setShowRatingModal(false);
-                router.replace('/(men)');
-              }}
+              onPress={skipRating}
             >
               <Text style={[styles.skipText, { color: colors.subText }]}>Skip</Text>
             </TouchableOpacity>

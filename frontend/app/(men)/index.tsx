@@ -48,16 +48,25 @@ const CreatorCard = memo(({
           <Text style={styles.onlineText}>{item.isOnline ? 'Online' : 'Offline'}</Text>
         </View>
         <TouchableOpacity
-          style={styles.heartButton}
+          style={styles.bestieButton}
           onPress={() => onToggleBestie(item.id)}
           activeOpacity={0.7}
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         >
           <Ionicons
             name={isBestie ? "heart" : "heart-outline"}
-            size={26}
+            size={22}
             color={isBestie ? "#FF4D67" : "#fff"}
           />
+          {!isBestie && (
+            <View style={styles.bestieUnitDivider} />
+          )}
+          {!isBestie && (
+            <View style={styles.bestieUnitCost}>
+              <Ionicons name="flash" size={12} color="#FFD700" />
+              <Text style={styles.bestieUnitCostText}>10</Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -514,15 +523,31 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  heartButton: {
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
+  bestieButton: {
+    flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: 'rgba(255,255,255,0.25)',
+    gap: 8,
+  },
+  bestieUnitDivider: {
+    width: 1,
+    height: 14,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  bestieUnitCost: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  bestieUnitCostText: {
+    color: '#FFD700',
+    fontSize: 13,
+    fontWeight: '800',
   },
   infoContainer: {
     position: 'absolute',

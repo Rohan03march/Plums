@@ -20,8 +20,8 @@ import { WebView } from 'react-native-webview';
 const { width } = Dimensions.get('window');
 const COLUMN_WIDTH = (width - 40 - 16) / 2; // (width - horizontalPadding - gap) / 2
 
+import { BACKEND_URL } from '../../config/backend';
 const RAZORPAY_KEY_ID = process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID;
-const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || "http://192.168.1.41:3000";
 
 export default function WalletScreen() {
   const { colors, isDark } = useTheme();

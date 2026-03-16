@@ -6,6 +6,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { collection, addDoc, serverTimestamp, updateDoc, doc, increment, Timestamp } from 'firebase/firestore';
 import { firebaseDb } from '../../config/firebase';
+import { BACKEND_URL } from '../../config/backend';
 
 export default function Withdrawal() {
   const { colors, isDark } = useTheme();
@@ -62,41 +63,31 @@ export default function Withdrawal() {
       }
     }
 
+
     setLoading(true);
     try {
-      // 1. Create Transaction (Escrow/Pending)
-      const txData = {
-        userId: appUser?.id!,
-        coins: coinsToDeduct,
-        amountInRupees: reqAmount,
-        type: 'withdrawal',
-        status: 'pending',
-        timestamp: Timestamp.now()
-      };
-      const txRef = await addDoc(collection(firebaseDb, 'Transactions'), txData);
-
-      // 2. Create Payout Request
-      const payoutData = {
-        userId: appUser?.id,
-        userName: appUser?.displayName || appUser?.name || 'Anonymous',
-        userAvatar: appUser?.avatar || '',
-        userEmail: appUser?.phone || '',
-        amount: reqAmount,
-        coins: coinsToDeduct,
-        method: method,
-        status: 'pending',
-        transactionId: txRef.id, // Link to transaction
-        createdAt: serverTimestamp(),
-        details: method === 'upi' ? { upiId } : { bankName, accountNumber, ifscCode, accountHolder }
-      };
-
-      await addDoc(collection(firebaseDb, 'PayoutRequests'), payoutData);
-      
-      // 2. Deduct coins from user balance (Escrow)
-      const userRef = doc(firebaseDb, 'Users', appUser?.id!);
-      await updateDoc(userRef, {
-        coins: increment(-coinsToDeduct)
+      const response = await fetch(`${BACKEND_URL}/api/payouts/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: appUser?.id,
+          userName: appUser?.displayName || appUser?.name,
+          userAvatar: appUser?.avatar,
+          userEmail: appUser?.phone,
+          amount: reqAmount,
+          coins: coinsToDeduct,
+          method: method,
+          details: method === 'upi' ? { upiId } : { bankName, accountNumber, ifscCode, accountHolder }
+        }),
       });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to submit request');
+      }
       
       Alert.alert('Success', `Withdrawal request for ₹${reqAmount} submitted successfully. Your balance has been updated.`);
       setAmount('');
@@ -105,9 +96,9 @@ export default function Withdrawal() {
       setAccountNumber('');
       setIfscCode('');
       setAccountHolder('');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error submitting withdrawal:', error);
-      Alert.alert('Error', 'Failed to submit request. Please try again.');
+      Alert.alert('Error', error.message || 'Failed to submit request. Please try again.');
     } finally {
       setLoading(false);
     }

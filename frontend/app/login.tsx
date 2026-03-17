@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Alert, ActivityIndicator, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -31,6 +31,20 @@ export default function Login() {
   const [code, setCode] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [timer, setTimer] = useState(60);
+  const [canResend, setCanResend] = useState(false);
+
+  useEffect(() => {
+    let interval: any;
+    if (isVerifying && timer > 0) {
+      interval = setInterval(() => {
+        setTimer((prev) => prev - 1);
+      }, 1000);
+    } else if (timer === 0) {
+      setCanResend(true);
+    }
+    return () => clearInterval(interval);
+  }, [isVerifying, timer]);
 
   const onSendOTP = async () => {
     if (!phoneNumber) {
@@ -44,6 +58,8 @@ export default function Login() {
       // For mock testing, we just transition to the 6-digit screen
       console.log('Transitioning to mock OTP screen for:', phoneNumber);
       setIsVerifying(true);
+      setTimer(60);
+      setCanResend(false);
     } catch (err: any) {
       console.error('Mock OTP Init Error:', err);
       Alert.alert('Error', 'Failed to proceed. Please try again.');
@@ -66,8 +82,8 @@ export default function Login() {
       // Use deterministic mock IDs for common test numbers, 
       // otherwise generate a unique mock ID based on the phone number
       const cleanPhone = phoneNumber.replace(/\D/g, '');
-      const mockId = cleanPhone.includes('1234567890') 
-        ? 'mock_user_man_123' 
+      const mockId = cleanPhone.includes('1234567890')
+        ? 'mock_user_man_123'
         : cleanPhone.includes('9876543210')
           ? 'mock_user_woman_456'
           : `mock_${cleanPhone}`;
@@ -191,9 +207,28 @@ export default function Login() {
                   </LinearGradient>
                 </TouchableOpacity>
 
+                <View style={styles.timerContainer}>
+                  {timer > 0 ? (
+                    <Text style={[styles.timerText, { color: colors.subText }]}>
+                      Resend code in <Text style={{ color: '#FF4D67', fontWeight: '700' }}>00:{timer < 10 ? `0${timer}` : timer}</Text>
+                    </Text>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.resendActionBtn}
+                      onPress={onSendOTP}
+                    >
+                      <Text style={[styles.resendActionText, { color: '#FF4D67' }]}>Resend Code</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+
                 <TouchableOpacity
                   style={styles.resendBtn}
-                  onPress={() => setIsVerifying(false)}
+                  onPress={() => {
+                    setIsVerifying(false);
+                    setTimer(60);
+                    setCanResend(false);
+                  }}
                 >
                   <Text style={[styles.resendText, { color: colors.subText }]}>
                     Wrong number? <Text style={{ color: '#FF4D67', fontWeight: '600' }}>Change</Text>
@@ -353,5 +388,20 @@ const styles = StyleSheet.create({
   link: {
     color: '#FF4D67',
     fontWeight: '600',
+  },
+  timerContainer: {
+    marginTop: 16,
+    alignItems: 'center',
+  },
+  timerText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  resendActionBtn: {
+    paddingVertical: 4,
+  },
+  resendActionText: {
+    fontSize: 15,
+    fontWeight: '700',
   },
 });

@@ -38,7 +38,7 @@ export default function WomenHome() {
 
   const handleAudioToggle = async (value: boolean) => {
     if (!user) return;
-    await updateUserPresence(user.uid, { 
+    await updateUserPresence(user.uid, {
       isAudioOnline: value,
       isOnline: value || isVideoOnline
     });
@@ -46,7 +46,7 @@ export default function WomenHome() {
 
   const handleVideoToggle = async (value: boolean) => {
     if (!user) return;
-    await updateUserPresence(user.uid, { 
+    await updateUserPresence(user.uid, {
       isVideoOnline: value,
       isOnline: value || isAudioOnline
     });
@@ -61,9 +61,9 @@ export default function WomenHome() {
         colors={['rgba(255, 77, 103, 0.05)', 'transparent', 'rgba(156, 39, 176, 0.05)']}
         style={StyleSheet.absoluteFill}
       />
-      
-      <ScrollView 
-        contentContainerStyle={styles.content} 
+
+      <ScrollView
+        contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -74,13 +74,13 @@ export default function WomenHome() {
           />
         }
       >
-        
+
         {/* Profile Header */}
         <View style={styles.profileHeader}>
           <View style={styles.avatarContainer}>
-            <Image 
-              source={getAvatarSource(appUser?.avatar, 'woman')} 
-              style={styles.avatar} 
+            <Image
+              source={getAvatarSource(appUser?.avatar, 'woman')}
+              style={styles.avatar}
               contentFit="cover"
               transition={200}
             />
@@ -90,8 +90,8 @@ export default function WomenHome() {
             <Text style={[styles.greeting, { color: colors.subText }]}>Welcome back,</Text>
             <Text style={[styles.name, { color: colors.text }]}>{appUser?.displayName?.split(' ')[0] || 'Creator'} ✨</Text>
           </View>
-          <TouchableOpacity 
-            style={styles.withdrawSurface} 
+          <TouchableOpacity
+            style={styles.withdrawSurface}
             onPress={() => router.push('/(women)/withdrawal')}
             activeOpacity={0.8}
           >
@@ -155,9 +155,9 @@ export default function WomenHome() {
               <Text style={styles.allTimeText}>Lifetime: {appUser?.allTimeEarnings?.toLocaleString() || '0'}</Text>
             </View>
           </View>
-          
-          <LinearGradient 
-            colors={['#1E1E24', '#15151A']} 
+
+          <LinearGradient
+            colors={['#1E1E24', '#15151A']}
             style={[styles.reportCard, { borderColor: 'rgba(255,255,255,0.05)' }]}
           >
             <View style={styles.totalEarnedRow}>
@@ -200,7 +200,7 @@ export default function WomenHome() {
               <Text style={[styles.statValue, { color: colors.text }]}>{appUser?.rating?.toFixed(1) || appUser?.avgRating?.toFixed(1) || '0.0'}</Text>
               <Text style={styles.statLabel}>Rating</Text>
             </View>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.statBox, { backgroundColor: colors.card }]}
               onPress={() => router.push('/(women)/call-history')}
               activeOpacity={0.7}

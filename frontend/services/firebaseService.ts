@@ -45,10 +45,16 @@ export const AVATAR_MAPPING: Record<string, any> = {
   'boy_2': require('../assets/images/3d_boy_2.png'),
   'boy_3': require('../assets/images/3d_boy_3.png'),
   'boy_4': require('../assets/images/3d_boy_4.png'),
+  'boy_5': require('../assets/images/3d_boy_5.png'),
+  'boy_6': require('../assets/images/3d_boy_6.png'),
+  'boy_7': require('../assets/images/3d_boy_7.png'),
   'girl_1': require('../assets/images/3d_avatar_1.png'),
   'girl_2': require('../assets/images/3d_avatar_2.png'),
   'girl_3': require('../assets/images/3d_avatar_3.png'),
   'girl_4': require('../assets/images/3d_avatar_4.png'),
+  'girl_5': require('../assets/images/3d_avatar_5.png'),
+  'girl_6': require('../assets/images/3d_avatar_6.png'),
+  'girl_7': require('../assets/images/3d_avatar_7.png'),
 };
 
 export const getAvatarSource = (avatarId: string | undefined, defaultType: 'man' | 'woman') => {

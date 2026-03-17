@@ -14,6 +14,9 @@ const MALE_AVATARS = [
   require('../assets/images/3d_boy_2.png'),
   require('../assets/images/3d_boy_3.png'),
   require('../assets/images/3d_boy_4.png'),
+  require('../assets/images/3d_boy_5.png'),
+  require('../assets/images/3d_boy_6.png'),
+  require('../assets/images/3d_boy_7.png'),
 ];
 
 const FEMALE_AVATARS = [
@@ -21,6 +24,9 @@ const FEMALE_AVATARS = [
   require('../assets/images/3d_avatar_2.png'),
   require('../assets/images/3d_avatar_3.png'),
   require('../assets/images/3d_avatar_4.png'),
+  require('../assets/images/3d_avatar_5.png'),
+  require('../assets/images/3d_avatar_6.png'),
+  require('../assets/images/3d_avatar_7.png'),
 ];
 
 const HOBBIES = [
@@ -78,8 +84,8 @@ export default function Setup() {
       setLoading(true);
     try {
       const avatarId = gender === 'male' 
-        ? `boy_${Math.floor(Math.random() * 4) + 1}`
-        : `girl_${Math.floor(Math.random() * 4) + 1}`;
+        ? `boy_${Math.floor(Math.random() * 7) + 1}`
+        : `girl_${Math.floor(Math.random() * 7) + 1}`;
 
       if (!user) {
         Alert.alert('Session Error', 'Please log in again to continue');

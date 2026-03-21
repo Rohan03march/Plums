@@ -19,16 +19,16 @@ const FEMALE_AVATARS = [
 ];
 
 // Memoized Card Component to prevent unnecessary re-renders
-const CreatorCard = memo(({ 
-  item, 
-  onToggleBestie, 
-  onCall, 
-  isBestie, 
-  colors 
-}: { 
-  item: FirestoreUser, 
-  onToggleBestie: (id: string) => void, 
-  onCall: (user: FirestoreUser, type: 'audio' | 'video') => void, 
+const CreatorCard = memo(({
+  item,
+  onToggleBestie,
+  onCall,
+  isBestie,
+  colors
+}: {
+  item: FirestoreUser,
+  onToggleBestie: (id: string) => void,
+  onCall: (user: FirestoreUser, type: 'audio' | 'video') => void,
   isBestie: boolean,
   colors: any
 }) => {
@@ -200,7 +200,7 @@ export default function MenHome() {
       setCreators(list);
       setIsLoading(false);
     }, 200);
-    
+
     return () => unsubscribe();
   }, [loading]);
 
@@ -226,7 +226,7 @@ export default function MenHome() {
   const toggleBestie = useCallback(async (creatorId: string) => {
     if (!appUser?.id) return;
     const isCurrentlyFavorite = appUser.besties?.includes(creatorId) || false;
-    
+
     if (!isCurrentlyFavorite) {
       const userGold = appUser.coins || 0;
       if (userGold < 10) {
@@ -246,8 +246,8 @@ export default function MenHome() {
         "It costs 10 gold to add this creator to your Bestie list. Proceed?",
         [
           { text: "Cancel", style: "cancel" },
-          { 
-            text: "Add (10 Gold)", 
+          {
+            text: "Add (10 Gold)",
             onPress: async () => {
               const newBalance = userGold - 10;
               await updateUserBalance(appUser.id, newBalance);
@@ -272,7 +272,7 @@ export default function MenHome() {
 
   const handleCall = useCallback(async (creator: FirestoreUser, type: 'audio' | 'video') => {
     if (!appUser) return;
-    
+
     const requiredGold = type === 'audio' ? 10 : 60;
     const userGold = appUser.coins || 0;
 
@@ -289,7 +289,7 @@ export default function MenHome() {
     }
 
     const channelId = `call_${Date.now()}`;
-    
+
     try {
       const sessionId = await initiateCallSession({
         callerId: appUser.id,
@@ -306,16 +306,16 @@ export default function MenHome() {
 
       if (!sessionId) throw new Error('Failed to initiate call');
 
-      router.push({ 
-        pathname: '/call/[id]' as any, 
-        params: { 
-          id: sessionId, 
-          type, 
-          creatorName: creator.displayName, 
+      router.push({
+        pathname: '/call/[id]' as any,
+        params: {
+          id: sessionId,
+          type,
+          creatorName: creator.displayName,
           creatorAvatar: creator.avatar,
           channelId,
           role: 'caller'
-        } 
+        }
       });
     } catch (error) {
       console.error('Call initiation error:', error);
@@ -370,6 +370,7 @@ export default function MenHome() {
         </View>
       ) : (
         <FlatList
+          contentContainerStyle={styles.listContent}
           data={filteredData}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}

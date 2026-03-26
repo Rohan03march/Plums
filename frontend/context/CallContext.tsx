@@ -28,6 +28,7 @@ interface CallContextType {
   remoteUid: number | null;
   isMuted: boolean;
   isSpeaker: boolean;
+  isCameraOn: boolean;
   showRatingModal: boolean;
   userRating: number;
   engine: IRtcEngine | null;
@@ -38,6 +39,7 @@ interface CallContextType {
   restoreCall: () => void;
   toggleMute: () => void;
   toggleSpeaker: () => void;
+  toggleCamera: () => void;
   setUserRating: (rating: number) => void;
   submitRating: () => Promise<void>;
   skipRating: () => void;
@@ -46,6 +48,25 @@ interface CallContextType {
 const CallContext = createContext<CallContextType | undefined>(undefined);
 
 const AGORA_APP_ID = process.env.EXPO_PUBLIC_AGORA_APP_ID || '';
+const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
+
+const fetchAgoraToken = async (channelName: string, uid: number = 0) => {
+  if (!BACKEND_URL) return null;
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/agora/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ channelName, uid, role: 'publisher' }),
+    });
+    const data = await response.json();
+    return data.token;
+  } catch (err) {
+    console.error('[Agora Context] Failed to fetch token:', err);
+    return null;
+  }
+};
+
+
 
 export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const router = useRouter();
@@ -57,10 +78,13 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [remoteUid, setRemoteUid] = useState<number | null>(null);
   const [isMuted, setIsMuted] = useState(false);
   const [isSpeaker, setIsSpeaker] = useState(true);
+  const [isCameraOn, setIsCameraOn] = useState(true);
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [userRating, setUserRating] = useState(0);
   const [callRole, setCallRole] = useState<'caller' | 'receiver' | null>(null);
   const [isEngineReady, setIsEngineReady] = useState(false);
+  const [lastCallData, setLastCallData] = useState<{ id: string; receiverId: string; type: string } | null>(null);
+
 
 
   const engine = useRef<IRtcEngine | null>(null);
@@ -129,6 +153,25 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [seconds, activeCall?.status, callRole, appUser?.coins]);
 
+  const handleCallTermination = React.useCallback(async (session: CallSession | null, role: 'caller' | 'receiver') => {
+    if (!activeCall && !session) return;
+    
+    // Store data needed for rating modal
+    const dataToStore = session || activeCall;
+    if (dataToStore) {
+      setLastCallData({ id: dataToStore.id, receiverId: dataToStore.receiverId, type: dataToStore.type });
+    }
+
+    const hasStarted = hasCallStartedRef.current;
+    cleanupCall();
+
+    if (role === 'caller' && hasStarted) {
+      setShowRatingModal(true);
+    } else {
+      router.replace(role === 'caller' ? '/(men)' : '/(women)');
+    }
+  }, [activeCall, cleanupCall, router]);
+
   const endCall = React.useCallback(async () => {
     if (activeCall) {
       const sessionId = activeCall.id;
@@ -155,26 +198,16 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
           type: type as 'audio' | 'video',
           timestamp: null
         });
-        setShowRatingModal(true);
-      } else {
-        cleanupCall();
-        router.replace(role === 'caller' ? '/(men)' : '/(women)');
       }
+      
+      handleCallTermination(activeCall, role as 'caller' | 'receiver');
     } else {
       cleanupCall();
       if (router.canGoBack()) router.back();
       else router.replace('/(men)');
     }
-  }, [activeCall, seconds, callRole, router, cleanupCall]);
+  }, [activeCall, seconds, callRole, router, cleanupCall, handleCallTermination]);
 
-  const handleCallTermination = React.useCallback((session: CallSession | null, role: 'caller' | 'receiver') => {
-    if (role === 'caller' && hasCallStartedRef.current) {
-      setShowRatingModal(true);
-    } else {
-      cleanupCall();
-      router.replace(role === 'caller' ? '/(men)' : '/(women)');
-    }
-  }, [cleanupCall, router]);
 
   const startCall = React.useCallback(async (sessionId: string, role: 'caller' | 'receiver', type: 'audio' | 'video') => {
     if (pendingSessionId.current === sessionId) return;
@@ -220,8 +253,9 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         engine.current.registerEventHandler({
           onJoinChannelSuccess: (connection: RtcConnection, elapsed: number) => {
-            console.log('[Agora Context] onJoinChannelSuccess', connection.channelId);
+            console.log('[Agora Context] Local user joined channel:', connection.channelId);
           },
+
           onUserJoined: (connection: RtcConnection, remoteUid: number, elapsed: number) => {
             setRemoteUid(remoteUid);
           },
@@ -230,22 +264,30 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
             endCall();
           },
           onError: (err: any, msg: string) => {
-            console.error('[Agora Context] Agora Error:', err, msg);
-          }
+            if (err === 110) {
+              console.error('[Agora Context] Agora Error 110: ERR_TOKEN_EXPIRED. Your EXPO_PUBLIC_AGORA_TOKEN is invalid or expired.');
+              Alert.alert('Calling Problem', 'The security token has expired. Please refresh the App Token in your Agora Console and update your .env file.');
+            } else {
+              console.error('[Agora Context] Agora Error:', err, msg);
+            }
+          },
         });
 
         engine.current.enableAudio();
-        // Set default speakerphone state based on call type
-        engine.current.setEnableSpeakerphone(type === 'video');
+        // Set default speakerphone state
+        const initialSpeaker = type === 'video';
+        setIsSpeaker(initialSpeaker);
+        engine.current.setEnableSpeakerphone(initialSpeaker);
 
         if (type === 'video') {
-
-
           engine.current.enableVideo();
           engine.current.startPreview();
+        } else {
+          engine.current.disableVideo();
         }
 
         setIsEngineReady(true);
+
         console.log('[Agora Context] Engine initialized successfully');
       } catch (err) {
 
@@ -256,15 +298,27 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
 
-    // For a real production app, you should fetch a token from your server:
-    // const token = await fetchAgoraToken(sessionId, appUser.id);
-    const token = null; // Set to your token if certificate is enabled in Agora Console
+    // Fetch a fresh token from the backend for production-ready security
+    const token = await fetchAgoraToken(sessionId);
+    
+    // Check if the engine is still available (handling race conditions where call might have ended)
+    if (!engine.current) {
+      console.warn('[Agora Context] Engine cleaned up before joinChannel; aborting.');
+      return;
+    }
 
     engine.current.joinChannel(token, sessionId, 0, {
       clientRoleType: ClientRoleType.ClientRoleBroadcaster,
     });
 
-    // Subscribe to session
+
+
+    // Automatically navigate to the call screen
+    router.push({
+      pathname: '/call/[id]',
+      params: { id: sessionId, role, type }
+    });
+
     if (sessionUnsubscribe.current) sessionUnsubscribe.current();
     sessionUnsubscribe.current = subscribeToCallSession(sessionId, (updatedSession) => {
       setActiveCall(updatedSession);
@@ -305,20 +359,38 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     engine.current?.setEnableSpeakerphone(nextSpeaker);
   }, [isSpeaker]);
 
+  const toggleCamera = React.useCallback(() => {
+    const nextCamera = !isCameraOn;
+    setIsCameraOn(nextCamera);
+    if (nextCamera) {
+      engine.current?.enableVideo();
+      engine.current?.startPreview();
+    } else {
+      engine.current?.stopPreview();
+      engine.current?.disableVideo();
+    }
+  }, [isCameraOn]);
+
   const submitRating = React.useCallback(async () => {
-    if (activeCall && userRating > 0) {
-      await updateCreatorRating(activeCall.receiverId, userRating);
+    const data = lastCallData || activeCall;
+    if (data && userRating > 0) {
+      try {
+        await updateCreatorRating(data.receiverId, userRating);
+      } catch (err) {
+        console.error('Failed to submit rating:', err);
+      }
       setShowRatingModal(false);
-      cleanupCall();
+      setLastCallData(null);
       router.replace('/(men)');
     }
-  }, [activeCall, userRating, cleanupCall, router]);
+  }, [lastCallData, activeCall, userRating, router]);
 
   const skipRating = React.useCallback(() => {
     setShowRatingModal(false);
-    cleanupCall();
+    setLastCallData(null);
     router.replace('/(men)');
-  }, [cleanupCall, router]);
+  }, [router]);
+
 
   const formatHistoryDuration = (secs: number) => {
     const mins = Math.floor(secs / 60);
@@ -328,9 +400,9 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return (
     <CallContext.Provider value={{
-      activeCall, isMinimized, seconds, remoteUid, isMuted, isSpeaker,
+      activeCall, isMinimized, seconds, remoteUid, isMuted, isSpeaker, isCameraOn,
       showRatingModal, userRating, engine: engine.current,
-      startCall, endCall, minimizeCall, restoreCall, toggleMute, toggleSpeaker,
+      startCall, endCall, minimizeCall, restoreCall, toggleMute, toggleSpeaker, toggleCamera,
       setUserRating, submitRating, skipRating, isEngineReady
     }}>
       {children}

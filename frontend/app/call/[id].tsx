@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, Image, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, Image, Dimensions, Platform } from 'react-native';
+
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
@@ -32,6 +33,7 @@ export default function CallRoom() {
     remoteUid,
     isMuted,
     isSpeaker,
+    isCameraOn,
     showRatingModal,
     userRating,
     engine,
@@ -40,11 +42,19 @@ export default function CallRoom() {
     minimizeCall,
     toggleMute,
     toggleSpeaker,
+    toggleCamera,
     setUserRating,
     submitRating: submitRatingFromContext,
     skipRating,
     isEngineReady,
   } = useCall();
+
+  const [isLocalVideoMain, setIsLocalVideoMain] = useState(false);
+
+  const toggleVideoSwap = () => {
+    setIsLocalVideoMain(!isLocalVideoMain);
+  };
+
 
   const [loading, setLoading] = useState(!session);
   const [isBestie, setIsBestie] = useState(false);
@@ -142,16 +152,19 @@ const CoinJump = ({ onComplete }: { onComplete: () => void }) => {
   );
 };
 
+  const hasInitialized = useRef(false);
 
   // Initialize Call if not already active
   useEffect(() => {
-    if (!session && id) {
+    if (!hasInitialized.current && id) {
+      hasInitialized.current = true;
       startCall(id as string, role as 'caller' | 'receiver', type as 'audio' | 'video')
         .then(() => setLoading(false));
-    } else {
+    } else if (session) {
       setLoading(false);
     }
-  }, [id, session]);
+  }, [id, session, startCall, role, type]);
+
 
   // Bestie & Gift Notifications
   useEffect(() => {
@@ -289,29 +302,62 @@ const CoinJump = ({ onComplete }: { onComplete: () => void }) => {
       </View>
       {giftNotification && <View style={styles.notificationBubble}><Text style={styles.notificationText}>{giftNotification}</Text></View>}
       <View style={styles.mainArea}>
-        {(loading || session?.status === 'ringing') ? (
+        {(loading || (session?.status === 'ringing' && type !== 'video')) ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#FF4D67" />
             <Text style={[styles.loadingText, { color: colors.subText }]}>{role === 'caller' ? (session?.status === 'ringing' ? 'Ringing...' : 'Calling...') : 'Connecting...'}</Text>
           </View>
         ) : (
+
           type === 'video' ? (
             <View style={styles.videoContainer}>
-              {isEngineReady && remoteUid ? (
-                <RtcSurfaceView uid={remoteUid} style={styles.remoteVideo} />
+              {/* Background Video (Main) */}
+              {isLocalVideoMain ? (
+                // Local is Main
+                isEngineReady && isCameraOn ? (
+                  <RtcSurfaceView canvas={{ uid: 0 }} style={styles.remoteVideo} />
+                ) : (
+                  <View style={styles.remotePlaceholder}>
+                    <Text style={styles.placeholderText}>Camera is Off</Text>
+                  </View>
+                )
               ) : (
-                <View style={styles.remotePlaceholder}>
-                  <Image source={getAvatarSource(role === 'caller' ? session?.receiverAvatar : session?.callerAvatar, role === 'caller' ? 'woman' : 'man')} style={styles.placeholderAvatarLarge} />
-                  <Text style={styles.placeholderText}>Connecting to peer...</Text>
-                  <ActivityIndicator color="#FF4D67" style={{ marginTop: 20 }} />
-                </View>
+                // Remote is Main
+                isEngineReady && remoteUid ? (
+                  <RtcSurfaceView canvas={{ uid: remoteUid }} style={styles.remoteVideo} />
+                ) : (
+                  <View style={styles.remotePlaceholder}>
+                    <Image source={getAvatarSource(role === 'caller' ? session?.receiverAvatar : session?.callerAvatar, role === 'caller' ? 'woman' : 'man')} style={styles.placeholderAvatarLarge} />
+                    <Text style={styles.placeholderText}>Connecting to peer...</Text>
+                    <ActivityIndicator color="#FF4D67" style={{ marginTop: 20 }} />
+                  </View>
+                )
               )}
-              <View style={styles.localVideoContainer}>
-                {isEngineReady && <RtcSurfaceView uid={0} style={styles.localVideo} />}
-              </View>
 
-
+              {/* Foreground Video (Overlay) */}
+              <TouchableOpacity style={styles.localVideoContainer} onPress={toggleVideoSwap} activeOpacity={0.9}>
+                {isLocalVideoMain ? (
+                  // Remote is Overlay
+                  isEngineReady && remoteUid ? (
+                    <RtcSurfaceView canvas={{ uid: remoteUid }} style={styles.localVideo} />
+                  ) : (
+                    <View style={[styles.localVideo, { backgroundColor: '#1E1E24', justifyContent: 'center', alignItems: 'center' }]}>
+                       <Ionicons name="person" size={20} color="#666" />
+                    </View>
+                  )
+                ) : (
+                  // Local is Overlay
+                  isEngineReady && isCameraOn ? (
+                    <RtcSurfaceView canvas={{ uid: 0 }} style={styles.localVideo} />
+                  ) : (
+                    <View style={[styles.localVideo, { backgroundColor: '#1E1E24', justifyContent: 'center', alignItems: 'center' }]}>
+                       <Ionicons name="videocam-off" size={24} color="#FF4D67" />
+                    </View>
+                  )
+                )}
+              </TouchableOpacity>
             </View>
+
           ) : (
             <View style={styles.audioContainer}>
               <View style={styles.avatarWrapper}>
@@ -405,19 +451,29 @@ const CoinJump = ({ onComplete }: { onComplete: () => void }) => {
 
       <BlurView intensity={isDark ? 40 : 60} tint={isDark ? 'dark' : 'light'} style={[styles.controlsContainer, { borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.05)' }]}>
         <View style={styles.mainControls}>
+
           <TouchableOpacity style={[styles.controlBtn, { backgroundColor: isMuted ? 'rgba(255, 77, 103, 0.25)' : 'rgba(255,255,255,0.1)' }]} onPress={toggleMute}>
             <Ionicons name={isMuted ? "mic-off" : "mic"} size={28} color={isMuted ? '#FF4D67' : colors.text} />
           </TouchableOpacity>
+          
           <TouchableOpacity style={styles.leaveBtn} onPress={endCall} activeOpacity={0.9}>
             <LinearGradient colors={['#FF4D67', '#FF8A9B']} style={styles.leaveGradient}>
               <Ionicons name="call" size={32} color="#fff" style={{ transform: [{ rotate: '135deg' }] }} />
             </LinearGradient>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.controlBtn, { backgroundColor: isSpeaker ? 'rgba(16, 185, 129, 0.25)' : 'rgba(255,255,255,0.1)' }]} onPress={toggleSpeaker}>
-            <Ionicons name={isSpeaker ? "volume-high" : "volume-medium"} size={28} color={isSpeaker ? '#10B981' : colors.text} />
-          </TouchableOpacity>
+
+          {type === 'video' ? (
+            <TouchableOpacity style={[styles.controlBtn, { backgroundColor: isCameraOn ? 'rgba(255,255,255,0.08)' : 'rgba(255, 77, 103, 0.25)' }]} onPress={toggleCamera}>
+              <Ionicons name={isCameraOn ? "videocam" : "videocam-off"} size={28} color={isCameraOn ? colors.text : '#FF4D67'} />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity style={[styles.controlBtn, { backgroundColor: isSpeaker ? 'rgba(16, 185, 129, 0.25)' : 'rgba(255,255,255,0.1)' }]} onPress={toggleSpeaker}>
+              <Ionicons name={isSpeaker ? "volume-high" : "volume-medium"} size={28} color={isSpeaker ? '#10B981' : colors.text} />
+            </TouchableOpacity>
+          )}
         </View>
       </BlurView>
+
 
       <Modal transparent visible={showGiftMenu} animationType="slide">
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowGiftMenu(false)}>
@@ -527,7 +583,21 @@ const styles = StyleSheet.create({
   audioAvatar: { width: 130, height: 130, borderRadius: 65, borderWidth: 3, borderColor: '#FF4D67' },
   connectingStatus: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 15, backgroundColor: 'rgba(255,255,255,0.05)', paddingHorizontal: 15, paddingVertical: 6, borderRadius: 15 },
   connectingText: { color: '#FF4D67', fontSize: 11, fontWeight: '700' },
-  controlsContainer: { paddingBottom: 40, paddingTop: 25, paddingHorizontal: 30, borderTopLeftRadius: 50, borderTopRightRadius: 50, borderTopWidth: 1.5, overflow: 'hidden' },
+  controlsContainer: { 
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 25, 
+    paddingTop: 20, 
+    paddingHorizontal: 30, 
+    borderTopLeftRadius: 40, 
+    borderTopRightRadius: 40, 
+    borderTopWidth: 1,
+    overflow: 'hidden',
+    zIndex: 100,
+  },
+
   avatarWrapper: { position: 'relative', marginBottom: 25 },
   heartBadge: {
     position: 'absolute',
@@ -550,8 +620,9 @@ const styles = StyleSheet.create({
   activeHeartBadge: { backgroundColor: '#FF4D67', borderColor: '#FF4D67' },
   userName: { fontSize: 26, fontWeight: '900', color: '#fff', letterSpacing: 0.5, marginBottom: 8 },
   mainControls: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20 },
-  controlBtn: { width: 64, height: 64, borderRadius: 32, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.08)' },
-  leaveBtn: { width: 80, height: 80, borderRadius: 40, overflow: 'hidden', shadowColor: '#FF4D67', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.5, shadowRadius: 20, elevation: 15 },
+  controlBtn: { width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.08)' },
+  leaveBtn: { width: 72, height: 72, borderRadius: 36, overflow: 'hidden', shadowColor: '#FF4D67', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.5, shadowRadius: 20, elevation: 15 },
+
   leaveGradient: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   giftBadgeContainer: {
     position: 'absolute',

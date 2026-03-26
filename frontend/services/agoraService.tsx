@@ -65,8 +65,11 @@ export interface IRtcEngine {
   registerEventHandler(handler: any): void;
   enableAudio(): number;
   enableVideo(): number;
+  disableVideo(): number;
   startPreview(): number;
+  stopPreview(): number;
   joinChannel(token: string | null, channelId: string, uid: number, options: any): number;
+
   leaveChannel(): number;
   release(): void;
   muteLocalAudioStream(mute: boolean): number;
@@ -137,10 +140,20 @@ export const createAgoraRtcEngine = (): IRtcEngine => {
       console.log('[Agora Mock] Enable Video');
       return 0;
     },
+    disableVideo: () => {
+      console.log('[Agora Mock] Disable Video');
+      return 0;
+    },
+
     startPreview: () => {
       console.log('[Agora Mock] Start Preview');
       return 0;
     },
+    stopPreview: () => {
+      console.log('[Agora Mock] Stop Preview');
+      return 0;
+    },
+
     joinChannel: (token, channelId, uid, options) => {
       console.log('[Agora Mock] Join Channel', { channelId, uid });
       return 0;

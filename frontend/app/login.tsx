@@ -2,7 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Alert, ActivityIndicator, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { FirebaseRecaptchaVerifierModal, FirebaseRecaptchaBanner } from 'expo-firebase-recaptcha';
+import FirebaseRecaptcha from '../components/FirebaseRecaptcha';
+import { WebView } from 'react-native-webview';
 import { signInWithPhoneNumber, PhoneAuthProvider, signInWithCredential } from 'firebase/auth';
 import { firebaseAuth } from '../config/firebase';
 import { useTheme } from '../context/ThemeContext';
@@ -34,7 +35,25 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [timer, setTimer] = useState(60);
   const [canResend, setCanResend] = useState(false);
-  const recaptchaVerifier = useRef(null);
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
+  
+  const recaptchaRef = useRef<any>(null);
+
+  const recaptchaVerifier = {
+    type: 'recaptcha',
+    verify: async () => {
+      if (recaptchaToken) return recaptchaToken;
+      recaptchaRef.current?.verify();
+      return new Promise<string>((resolve) => {
+        const checkToken = setInterval(() => {
+          if (recaptchaToken) {
+            clearInterval(checkToken);
+            resolve(recaptchaToken);
+          }
+        }, 500);
+      });
+    }
+  };
 
   useEffect(() => {
     let interval: any;
@@ -48,6 +67,12 @@ export default function Login() {
     return () => clearInterval(interval);
   }, [isVerifying, timer]);
 
+  useEffect(() => {
+    if (recaptchaToken && phoneNumber && !isVerifying && !loading) {
+      onSendOTP();
+    }
+  }, [recaptchaToken]);
+
   const onSendOTP = async () => {
     if (!phoneNumber) {
       Alert.alert('Required', 'Please enter your phone number to continue');
@@ -57,12 +82,24 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const phoneProvider = new PhoneAuthProvider(firebaseAuth);
-      const verificationId = await phoneProvider.verifyPhoneNumber(
+      setLoading(true);
+      // First, trigger the reCAPTCHA if we don't have a token
+      if (!recaptchaToken) {
+        recaptchaRef.current?.verify();
+        setLoading(false); // Stop loading while waiting for recaptcha
+        return;
+      }
+
+      const confirmation = await signInWithPhoneNumber(
+        firebaseAuth,
         `+91${phoneNumber}`,
-        recaptchaVerifier.current!
+        {
+          type: 'recaptcha',
+          verify: async () => recaptchaToken
+        } as any
       );
-      setVerificationId(verificationId);
+      
+      setVerificationId(confirmation.verificationId);
       setIsVerifying(true);
       setTimer(60);
       setCanResend(false);
@@ -142,11 +179,14 @@ export default function Login() {
         <View style={styles.content}>
           {renderHeader()}
 
-          <FirebaseRecaptchaVerifierModal
-            ref={recaptchaVerifier}
+          <FirebaseRecaptcha
+            ref={recaptchaRef}
             firebaseConfig={firebaseConfig}
-            // attemptInvisibleVerification
+            onVerify={(token) => {
+              setRecaptchaToken(token);
+            }}
           />
+          {/* Custom ReCAPTCHA WebView will be implemented here if needed */}
 
           <BlurView intensity={isDark ? 20 : 40} tint={isDark ? 'dark' : 'light'} style={styles.glassCard}>
             {!isVerifying ? (

@@ -49,7 +49,8 @@ const FirebaseRecaptcha = forwardRef((props: FirebaseRecaptchaProps, ref) => {
           
           window.onLoadCallback = function() {
             window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
-              'size': 'normal',
+              'size': 'invisible',
+
               'callback': (response) => {
                 window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'verify', token: response }));
               },

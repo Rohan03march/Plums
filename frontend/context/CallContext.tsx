@@ -230,7 +230,12 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
 
         engine.current.enableAudio();
+        // Set default speakerphone state based on call type
+        engine.current.setEnableSpeakerphone(type === 'video');
+        
         if (type === 'video') {
+
+
           engine.current.enableVideo();
           engine.current.startPreview();
         }

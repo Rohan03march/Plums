@@ -115,9 +115,13 @@ export default function Login() {
       Alert.alert('Success', 'OTP has been sent to your phone.');
     } catch (err: any) {
       console.error('OTP Init Error:', err);
-      const detail = err.code || err.message || 'Unknown error';
-      Alert.alert('Login Error', `Failed to send OTP (${detail}). Please check your connection and number.`);
+      let detail = 'Please check your connection and number.';
+      if (err.code === 'auth/invalid-phone-number') detail = 'The phone number is invalid.';
+      if (err.code === 'auth/too-many-requests') detail = 'Too many attempts. Please try again later.';
+      
+      Alert.alert('Login Error', detail);
     } finally {
+
 
       setLoading(false);
     }
@@ -151,8 +155,13 @@ export default function Login() {
       }
     } catch (err: any) {
       console.error('Verification Error:', err);
-      Alert.alert('Verification Failed', err.message || 'The code you entered is invalid.');
+      let message = 'The code you entered is invalid. Please try again.';
+      if (err.code === 'auth/code-expired') message = 'This code has expired. Please request a new one.';
+      if (err.code === 'auth/user-disabled') message = 'This account has been disabled.';
+      
+      Alert.alert('Verification Failed', message);
     } finally {
+
       setLoading(false);
     }
   };

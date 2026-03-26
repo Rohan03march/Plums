@@ -1,4 +1,24 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, PermissionsAndroid, Platform } from 'react-native';
+
+export const requestCallPermissions = async () => {
+  if (Platform.OS === 'android') {
+    try {
+      const granted = await PermissionsAndroid.requestMultiple([
+        PermissionsAndroid.PERMISSIONS.CAMERA,
+        PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+      ]);
+      return (
+        granted['android.permission.CAMERA'] === PermissionsAndroid.RESULTS.GRANTED &&
+        granted['android.permission.RECORD_AUDIO'] === PermissionsAndroid.RESULTS.GRANTED
+      );
+    } catch (err) {
+      console.warn('Permission request error:', err);
+      return false;
+    }
+  }
+  return true;
+};
+
 
 // Types and Enums from react-native-agora (Mocked if not available)
 export enum ChannelProfileType {

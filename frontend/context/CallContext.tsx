@@ -8,7 +8,9 @@ import createAgoraRtcEngine, {
   IRtcEngine,
   RtcConnection,
   UserOfflineReasonType,
+  requestCallPermissions,
 } from '../services/agoraService';
+
 import { 
   subscribeToCallSession, 
   updateCallSession, 
@@ -188,36 +190,57 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
+    // Request Permissions first
+    const permissionsGranted = await requestCallPermissions();
+    if (!permissionsGranted) {
+      Alert.alert('Permission Required', 'Camera and Microphone permissions are needed to start a call.');
+      pendingSessionId.current = null;
+      return;
+    }
+
     // Initialize Agora Engine
     if (!engine.current) {
-      engine.current = createAgoraRtcEngine();
-      engine.current.initialize({
-        appId: AGORA_APP_ID,
-        channelProfile: ChannelProfileType.ChannelProfileCommunication,
-      });
-
-      engine.current.registerEventHandler({
-        onJoinChannelSuccess: (connection: RtcConnection, elapsed: number) => {
-          console.log('[Agora Context] onJoinChannelSuccess', connection.channelId);
-        },
-        onUserJoined: (connection: RtcConnection, remoteUid: number, elapsed: number) => {
-          setRemoteUid(remoteUid);
-        },
-        onUserOffline: (connection: RtcConnection, remoteUid: number, reason: UserOfflineReasonType) => {
-          setRemoteUid(null);
-          endCall();
-        },
-        onError: (err: any, msg: string) => {
-          console.error('[Agora Context] Error:', err, msg);
+      try {
+        engine.current = createAgoraRtcEngine();
+        const initCode = engine.current.initialize({
+          appId: AGORA_APP_ID,
+          channelProfile: ChannelProfileType.ChannelProfileCommunication,
+        });
+        
+        if (initCode !== 0) {
+          console.error('[Agora Context] Engine initialization failed with code:', initCode);
+          Alert.alert('Calling Error', 'Could not initialize the calling engine. Please restart the app.');
+          return;
         }
-      });
 
-      engine.current.enableAudio();
-      if (type === 'video') {
-        engine.current.enableVideo();
-        engine.current.startPreview();
+        engine.current.registerEventHandler({
+          onJoinChannelSuccess: (connection: RtcConnection, elapsed: number) => {
+            console.log('[Agora Context] onJoinChannelSuccess', connection.channelId);
+          },
+          onUserJoined: (connection: RtcConnection, remoteUid: number, elapsed: number) => {
+            setRemoteUid(remoteUid);
+          },
+          onUserOffline: (connection: RtcConnection, remoteUid: number, reason: UserOfflineReasonType) => {
+            setRemoteUid(null);
+            endCall();
+          },
+          onError: (err: any, msg: string) => {
+            console.error('[Agora Context] Agora Error:', err, msg);
+          }
+        });
+
+        engine.current.enableAudio();
+        if (type === 'video') {
+          engine.current.enableVideo();
+          engine.current.startPreview();
+        }
+      } catch (err) {
+        console.error('[Agora Context] Fatal Error during initialization:', err);
+        Alert.alert('Calling Error', 'A fatal error occurred while starting the call.');
+        return;
       }
     }
+
 
     // For a real production app, you should fetch a token from your server:
     // const token = await fetchAgoraToken(sessionId, appUser.id);

@@ -95,9 +95,18 @@ export default function Login() {
         `+91${phoneNumber}`,
         {
           type: 'recaptcha',
-          verify: async () => recaptchaToken
+          verify: async () => recaptchaToken,
+          reset: () => {
+            console.log('reCAPTCHA Reset requested');
+            recaptchaRef.current?.reset();
+          },
+          _reset: () => {
+            console.log('reCAPTCHA internal _reset requested');
+            recaptchaRef.current?.reset();
+          }
         } as any
       );
+
       
       setVerificationId(confirmation.verificationId);
       setIsVerifying(true);
@@ -106,8 +115,10 @@ export default function Login() {
       Alert.alert('Success', 'OTP has been sent to your phone.');
     } catch (err: any) {
       console.error('OTP Init Error:', err);
-      Alert.alert('Error', err.message || 'Failed to send OTP. Please check your number.');
+      const detail = err.code || err.message || 'Unknown error';
+      Alert.alert('Login Error', `Failed to send OTP (${detail}). Please check your connection and number.`);
     } finally {
+
       setLoading(false);
     }
   };

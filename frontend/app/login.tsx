@@ -29,10 +29,12 @@ export default function Login() {
 
   const [phoneNumber, setPhoneNumber] = useState('');
   const [code, setCode] = useState('');
+  const [verificationId, setVerificationId] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
   const [loading, setLoading] = useState(false);
   const [timer, setTimer] = useState(60);
   const [canResend, setCanResend] = useState(false);
+  const recaptchaVerifier = useRef(null);
 
   useEffect(() => {
     let interval: any;
@@ -55,14 +57,19 @@ export default function Login() {
     setLoading(true);
 
     try {
-      // For mock testing, we just transition to the 6-digit screen
-      console.log('Transitioning to mock OTP screen for:', phoneNumber);
+      const phoneProvider = new PhoneAuthProvider(firebaseAuth);
+      const verificationId = await phoneProvider.verifyPhoneNumber(
+        `+91${phoneNumber}`,
+        recaptchaVerifier.current!
+      );
+      setVerificationId(verificationId);
       setIsVerifying(true);
       setTimer(60);
       setCanResend(false);
+      Alert.alert('Success', 'OTP has been sent to your phone.');
     } catch (err: any) {
-      console.error('Mock OTP Init Error:', err);
-      Alert.alert('Error', 'Failed to proceed. Please try again.');
+      console.error('OTP Init Error:', err);
+      Alert.alert('Error', err.message || 'Failed to send OTP. Please check your number.');
     } finally {
       setLoading(false);
     }
@@ -73,32 +80,30 @@ export default function Login() {
       Alert.alert('Invalid Code', 'Please enter the 6-digit verification code.');
       return;
     }
+    if (!verificationId) {
+      Alert.alert('Error', 'Session expired. Please request a new OTP.');
+      setIsVerifying(false);
+      return;
+    }
     setLoading(true);
 
     try {
-      // Simulate/Mock login as earlier requested
-      console.log('Verifying mock OTP:', code);
+      const credential = PhoneAuthProvider.credential(verificationId, code);
+      const userCredential = await signInWithCredential(firebaseAuth, credential);
+      const firebaseUser = userCredential.user;
 
-      // Use deterministic mock IDs for common test numbers, 
-      // otherwise generate a unique mock ID based on the phone number
-      const cleanPhone = phoneNumber.replace(/\D/g, '');
-      const mockId = cleanPhone.includes('1234567890')
-        ? 'mock_user_man_123'
-        : cleanPhone.includes('9876543210')
-          ? 'mock_user_woman_456'
-          : `mock_${cleanPhone}`;
+      console.log('Firebase Login Success:', firebaseUser.uid);
 
-      await setMockUser(mockId);
-
-      const existingData = await getUserData(mockId);
+      // Check if user exists in our Firestore 'Users' collection
+      const existingData = await getUserData(firebaseUser.uid);
       if (existingData?.isProfileComplete) {
         router.replace(existingData.role === 'man' ? '/(men)' : '/(women)');
       } else {
         router.replace('/role');
       }
     } catch (err: any) {
-      console.error('Mock Verification Error:', err);
-      Alert.alert('Verification Failed', 'An error occurred during verification.');
+      console.error('Verification Error:', err);
+      Alert.alert('Verification Failed', err.message || 'The code you entered is invalid.');
     } finally {
       setLoading(false);
     }
@@ -136,6 +141,12 @@ export default function Login() {
       >
         <View style={styles.content}>
           {renderHeader()}
+
+          <FirebaseRecaptchaVerifierModal
+            ref={recaptchaVerifier}
+            firebaseConfig={firebaseConfig}
+            // attemptInvisibleVerification
+          />
 
           <BlurView intensity={isDark ? 20 : 40} tint={isDark ? 'dark' : 'light'} style={styles.glassCard}>
             {!isVerifying ? (

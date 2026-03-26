@@ -182,6 +182,12 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsMuted(false);
     setIsSpeaker(true);
 
+    if (AGORA_APP_ID === '') {
+      console.error('[Agora Context] AGORA_APP_ID is missing in .env');
+      Alert.alert('Configuration Error', 'Agora App ID is missing. Please check your .env file.');
+      return;
+    }
+
     // Initialize Agora Engine
     if (!engine.current) {
       engine.current = createAgoraRtcEngine();
@@ -213,7 +219,11 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
 
-    engine.current.joinChannel(null, sessionId, 0, {
+    // For a real production app, you should fetch a token from your server:
+    // const token = await fetchAgoraToken(sessionId, appUser.id);
+    const token = null; // Set to your token if certificate is enabled in Agora Console
+
+    engine.current.joinChannel(token, sessionId, 0, {
       clientRoleType: ClientRoleType.ClientRoleBroadcaster,
     });
 

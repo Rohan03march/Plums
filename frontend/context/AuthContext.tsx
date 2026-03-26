@@ -29,28 +29,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let unsubDb: (() => void) | null = null;
     let isMounted = true;
 
-    const loadPersistedUser = async () => {
-      try {
-        const storedMockId = await AsyncStorage.getItem('mock_user_id');
-        if (storedMockId && isMounted) {
-          console.log('Restoring persisted mock user:', storedMockId);
-          setUser({ uid: storedMockId });
-          setLoading(false);
-          return;
-        }
-      } catch (e) {
-        console.error('Error loading persisted mock user:', e);
-      }
-    };
-
     const unsubscribe = onAuthStateChanged(firebaseAuth, async (firebaseUser) => {
-      // If we already have a mock user (set by AsyncStorage or setMockUser), don't override with null
-      const storedMockId = await AsyncStorage.getItem('mock_user_id');
-      if (storedMockId) return;
-
       if (firebaseUser) {
         setUser(firebaseUser);
       } else {
@@ -59,8 +40,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setLoading(false);
       }
     });
-
-    loadPersistedUser();
 
     return () => {
       isMounted = false;
@@ -89,21 +68,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, [user?.uid]);
 
   const signOut = async () => {
-    await AsyncStorage.removeItem('mock_user_id');
     await firebaseAuth.signOut();
     setUser(null);
     setAppUser(null);
   };
 
   const setMockUser = async (uid: string) => {
-    await AsyncStorage.setItem('mock_user_id', uid);
+    console.warn("setMockUser called in production-ready mode. This should be replaced by real auth.");
     setUser({ uid });
-    setLoading(true); // Restart loading state to fetch new user data
+    setLoading(true);
   };
 
   const signInAnonymously = async () => {
     try {
-      await AsyncStorage.removeItem('mock_user_id');
       await firebaseSignInAnonymously(firebaseAuth);
     } catch (error) {
       console.error("Anonymous Sign-in Error:", error);

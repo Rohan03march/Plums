@@ -11,11 +11,11 @@ import createAgoraRtcEngine, {
   requestCallPermissions,
 } from '../services/agoraService';
 
-import { 
-  subscribeToCallSession, 
-  updateCallSession, 
-  CallSession, 
-  executeCallTransfer, 
+import {
+  subscribeToCallSession,
+  updateCallSession,
+  CallSession,
+  executeCallTransfer,
   recordCallRecord,
   updateCreatorRating
 } from '../services/firebaseService';
@@ -31,6 +31,7 @@ interface CallContextType {
   showRatingModal: boolean;
   userRating: number;
   engine: IRtcEngine | null;
+  isEngineReady: boolean;
   startCall: (sessionId: string, role: 'caller' | 'receiver', type: 'audio' | 'video') => Promise<void>;
   endCall: () => Promise<void>;
   minimizeCall: () => void;
@@ -49,7 +50,7 @@ const AGORA_APP_ID = process.env.EXPO_PUBLIC_AGORA_APP_ID || '';
 export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const router = useRouter();
   const { appUser } = useAuth();
-  
+
   const [activeCall, setActiveCall] = useState<CallSession | null>(null);
   const [isMinimized, setIsMinimized] = useState(false);
   const [seconds, setSeconds] = useState(0);
@@ -59,6 +60,8 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [userRating, setUserRating] = useState(0);
   const [callRole, setCallRole] = useState<'caller' | 'receiver' | null>(null);
+  const [isEngineReady, setIsEngineReady] = useState(false);
+
 
   const engine = useRef<IRtcEngine | null>(null);
   const billingCountRef = useRef(0);
@@ -75,7 +78,9 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsMinimized(false);
     setSeconds(0);
     setRemoteUid(null);
+    setIsEngineReady(false);
     pendingSessionId.current = null;
+
     if (sessionUnsubscribe.current) {
       sessionUnsubscribe.current();
       sessionUnsubscribe.current = null;
@@ -103,7 +108,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (callRole === 'caller' && activeCall?.status === 'accepted') {
       const amount = activeCall.type === 'audio' ? 10 : 60;
       const currentMinute = Math.floor(seconds / 60);
-      
+
       if (currentMinute >= billingCountRef.current) {
         if (appUser && appUser.coins < amount) {
           Alert.alert('Insufficient Balance', 'Your call ended due to insufficient gold.');
@@ -132,9 +137,9 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const billingMins = billingCountRef.current;
       const role = callRole;
       const hasStarted = hasCallStartedRef.current;
-      
+
       await updateCallSession(sessionId, 'ended');
-      
+
       if (role === 'caller' && hasStarted) {
         const amount = type === 'audio' ? 10 : 60;
         await recordCallRecord({
@@ -173,7 +178,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const startCall = React.useCallback(async (sessionId: string, role: 'caller' | 'receiver', type: 'audio' | 'video') => {
     if (pendingSessionId.current === sessionId) return;
-    
+
     pendingSessionId.current = sessionId;
     setCallRole(role);
     setSeconds(0);
@@ -206,7 +211,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
           appId: AGORA_APP_ID,
           channelProfile: ChannelProfileType.ChannelProfileCommunication,
         });
-        
+
         if (initCode !== 0) {
           console.error('[Agora Context] Engine initialization failed with code:', initCode);
           Alert.alert('Calling Error', 'Could not initialize the calling engine. Please restart the app.');
@@ -232,14 +237,18 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         engine.current.enableAudio();
         // Set default speakerphone state based on call type
         engine.current.setEnableSpeakerphone(type === 'video');
-        
+
         if (type === 'video') {
 
 
           engine.current.enableVideo();
           engine.current.startPreview();
         }
+
+        setIsEngineReady(true);
+        console.log('[Agora Context] Engine initialized successfully');
       } catch (err) {
+
         console.error('[Agora Context] Fatal Error during initialization:', err);
         Alert.alert('Calling Error', 'A fatal error occurred while starting the call.');
         return;
@@ -273,13 +282,13 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const restoreCall = React.useCallback(() => {
     if (activeCall && callRole) {
       setIsMinimized(false);
-      router.push({ 
-        pathname: '/call/[id]', 
-        params: { 
-          id: activeCall.id, 
-          role: callRole, 
-          type: activeCall.type 
-        } 
+      router.push({
+        pathname: '/call/[id]',
+        params: {
+          id: activeCall.id,
+          role: callRole,
+          type: activeCall.type
+        }
       });
     }
   }, [activeCall, callRole, router]);
@@ -322,12 +331,13 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       activeCall, isMinimized, seconds, remoteUid, isMuted, isSpeaker,
       showRatingModal, userRating, engine: engine.current,
       startCall, endCall, minimizeCall, restoreCall, toggleMute, toggleSpeaker,
-      setUserRating, submitRating, skipRating
+      setUserRating, submitRating, skipRating, isEngineReady
     }}>
       {children}
     </CallContext.Provider>
   );
 };
+
 
 export const useCall = () => {
   const context = useContext(CallContext);

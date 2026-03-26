@@ -42,7 +42,8 @@ export default function CallRoom() {
     toggleSpeaker,
     setUserRating,
     submitRating: submitRatingFromContext,
-    skipRating
+    skipRating,
+    isEngineReady,
   } = useCall();
 
   const [loading, setLoading] = useState(!session);
@@ -296,7 +297,7 @@ const CoinJump = ({ onComplete }: { onComplete: () => void }) => {
         ) : (
           type === 'video' ? (
             <View style={styles.videoContainer}>
-              {remoteUid ? (
+              {isEngineReady && remoteUid ? (
                 <RtcSurfaceView uid={remoteUid} style={styles.remoteVideo} />
               ) : (
                 <View style={styles.remotePlaceholder}>
@@ -305,7 +306,11 @@ const CoinJump = ({ onComplete }: { onComplete: () => void }) => {
                   <ActivityIndicator color="#FF4D67" style={{ marginTop: 20 }} />
                 </View>
               )}
-              <View style={styles.localVideoContainer}><RtcSurfaceView uid={0} style={styles.localVideo} /></View>
+              <View style={styles.localVideoContainer}>
+                {isEngineReady && <RtcSurfaceView uid={0} style={styles.localVideo} />}
+              </View>
+
+
             </View>
           ) : (
             <View style={styles.audioContainer}>

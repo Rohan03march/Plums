@@ -1,4 +1,6 @@
 import { View, Text, StyleSheet, PermissionsAndroid, Platform } from 'react-native';
+import Constants, { AppOwnership } from 'expo-constants';
+
 
 export const requestCallPermissions = async () => {
   if (Platform.OS === 'android') {
@@ -72,15 +74,18 @@ export interface IRtcEngine {
 }
 
 let AgoraRTC: any = null;
-let isExpoGo = false;
+let isExpoGo = Constants.appOwnership === AppOwnership.Expo;
 
 try {
-  // Try to require the native module
-  AgoraRTC = require('react-native-agora');
+  if (!isExpoGo) {
+    // Only try to require the native module if NOT in Expo Go
+    AgoraRTC = require('react-native-agora');
+  }
 } catch (e) {
-  console.warn('Agora native module not found. Using mock implementation (Expo Go).');
+  console.warn('Agora native module not found. Using mock implementation.');
   isExpoGo = true;
 }
+
 
 // Exported Components
 export const RtcSurfaceView = (props: any) => {

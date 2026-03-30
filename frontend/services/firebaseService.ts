@@ -78,7 +78,7 @@ export interface Transaction {
   userId: string;
   amountInRupees: number;
   coins: number;
-  type: 'deposit' | 'withdrawal' | 'call_spend' | 'call_earn' | 'refund' | 'gift_spend' | 'gift_earn';
+  type: 'deposit' | 'withdrawal' | 'call_spend' | 'call_earn' | 'refund' | 'gift_spend' | 'gift_earn' | 'bestie_spend';
   status: 'pending' | 'success' | 'failed';
   timestamp: any;
   razorpayPaymentId?: string;
@@ -615,7 +615,7 @@ export const blockUser = async (blockerId: string, blockedId: string) => {
   }
 };
 
-export const sendGift = async (senderId: string, receiverId: string, coins: number) => {
+export const sendGift = async (senderId: string, receiverId: string, coins: number, type: Transaction['type'] = 'gift_spend', details: string = 'Gifting') => {
   try {
     const senderRef = doc(firebaseDb, 'Users', senderId);
     const receiverRef = doc(firebaseDb, 'Users', receiverId);
@@ -640,10 +640,10 @@ export const sendGift = async (senderId: string, receiverId: string, coins: numb
         userId: senderId,
         coins,
         amountInRupees: coins / 10,
-        type: 'gift_spend',
+        type: type,
         status: 'success',
         timestamp,
-        details: 'Gifting'
+        details: details
       }),
       recordTransaction({
         userId: receiverId,

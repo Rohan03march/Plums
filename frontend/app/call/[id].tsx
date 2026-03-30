@@ -228,7 +228,8 @@ const CoinJump = ({ onComplete }: { onComplete: () => void }) => {
         { text: "Cancel", style: "cancel" },
         {
           text: "Add (10 Gold)", onPress: async () => {
-            const success = await sendGift(appUser.id, creatorId, 10);
+            const receiverName = role === 'caller' ? session?.receiverName : session?.callerName;
+            const success = await sendGift(appUser.id, creatorId, 10, 'bestie_spend', `Added ${receiverName} as Bestie`);
             if (success) {
               await toggleFavorite(appUser.id, creatorId, true);
               setIsBestie(true);

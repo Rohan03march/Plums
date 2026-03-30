@@ -12,7 +12,13 @@ const HistoryItem = memo(({ item, colors, accentColor, isCredit }: { item: Trans
     <View style={styles.cardLeft}>
       <View style={[styles.iconBox, { backgroundColor: `${accentColor}15` }]}>
         <Ionicons 
-          name={item.type === 'deposit' ? 'wallet' : item.type === 'withdrawal' ? 'cash' : item.type === 'refund' ? 'refresh-circle' : (item.type === 'gift_spend' ? 'gift' : 'call')} 
+          name={
+            item.type === 'deposit' ? 'wallet' : 
+            item.type === 'withdrawal' ? 'cash' : 
+            item.type === 'refund' ? 'refresh-circle' : 
+            item.type === 'bestie_spend' ? 'heart' :
+            (item.type === 'gift_spend' ? 'gift' : 'call')
+          } 
           size={20} 
           color={accentColor} 
         />
@@ -23,6 +29,7 @@ const HistoryItem = memo(({ item, colors, accentColor, isCredit }: { item: Trans
            item.type === 'withdrawal' ? 'Withdrawal' : 
            item.type === 'call_spend' ? 'Call Payment' : 
            item.type === 'gift_spend' ? 'Gift Sent' : 
+           item.type === 'bestie_spend' ? (item.details || 'Bestie Added') :
            item.type === 'refund' ? 'Refund' : 'Transaction'}
         </Text>
         <Text style={[styles.date, { color: colors.subText }]}>
@@ -63,7 +70,7 @@ export default function TransactionHistory() {
     if (!user) return;
     setIsDataLoading(true);
     try {
-      const types = activeTab === 'gold' ? ['call_spend', 'gift_spend'] : ['deposit', 'refund'];
+      const types = activeTab === 'gold' ? ['call_spend', 'gift_spend', 'bestie_spend'] : ['deposit', 'refund'];
       const response = await fetchMoreTransactions(user.uid, null, 20, types);
       setTransactions(response.list);
       lastDocRef.current = response.lastVisible;
@@ -90,7 +97,7 @@ export default function TransactionHistory() {
 
     setIsMoreLoading(true);
     try {
-      const types = activeTab === 'gold' ? ['call_spend', 'gift_spend'] : ['deposit', 'refund'];
+      const types = activeTab === 'gold' ? ['call_spend', 'gift_spend', 'bestie_spend'] : ['deposit', 'refund'];
       const response = await fetchMoreTransactions(user.uid, lastDocRef.current, 20, types);
       if (response.list.length > 0) {
         setTransactions(prev => [...prev, ...response.list]);

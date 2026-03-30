@@ -249,16 +249,19 @@ export default function MenHome() {
           {
             text: "Add (10 Gold)",
             onPress: async () => {
+              const creator = creators.find(c => c.id === creatorId) || besties.find(c => c.id === creatorId);
+              const creatorName = creator?.displayName || creator?.name || 'User';
+              
               const newBalance = userGold - 10;
               await updateUserBalance(appUser.id, newBalance);
               await recordTransaction({
                 userId: appUser.id,
-                type: 'call_spend',
+                type: 'bestie_spend',
                 coins: 10,
                 amountInRupees: 1,
                 status: 'success',
                 timestamp: Timestamp.now(),
-                details: 'Added Bestie'
+                details: `Added ${creatorName} as Bestie`
               });
               await toggleFavorite(appUser.id, creatorId, true);
             }

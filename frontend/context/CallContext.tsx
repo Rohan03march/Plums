@@ -43,6 +43,8 @@ interface CallContextType {
   setUserRating: (rating: number) => void;
   submitRating: () => Promise<void>;
   skipRating: () => void;
+  isSubmittingRating: boolean;
+  lastCallData: { id: string; receiverId: string; type: string; receiverName?: string; receiverAvatar?: string | null } | null;
 }
 
 const CallContext = createContext<CallContextType | undefined>(undefined);
@@ -81,14 +83,16 @@ export const CallProvider = ({ children }: { children?: React.ReactNode }) => {
   const [isCameraOn, setIsCameraOn] = useState(true);
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [userRating, setUserRating] = useState(0);
+  const [isSubmittingRating, setIsSubmittingRating] = useState(false);
   const [callRole, setCallRole] = useState<'caller' | 'receiver' | null>(null);
   const [isEngineReady, setIsEngineReady] = useState(false);
-  const [lastCallData, setLastCallData] = useState<{ id: string; receiverId: string; type: string } | null>(null);
+  const [lastCallData, setLastCallData] = useState<{ id: string; receiverId: string; type: string; receiverName?: string; receiverAvatar?: string | null } | null>(null);
 
 
 
   const engine = useRef<IRtcEngine | null>(null);
-  const billingCountRef = useRef(0);
+  const billingCountRef = React.useRef(0);
+  const lastBilledSecondRef = React.useRef(-1);
   const hasCallStartedRef = useRef(false);
   const sessionUnsubscribe = useRef<(() => void) | null>(null);
   const pendingSessionId = useRef<string | null>(null);
@@ -127,31 +131,6 @@ export const CallProvider = ({ children }: { children?: React.ReactNode }) => {
     };
   }, [activeCall?.status]);
 
-  // Billing Logic
-  useEffect(() => {
-    if (callRole === 'caller' && activeCall?.status === 'accepted') {
-      const amount = activeCall.type === 'audio' ? 10 : 60;
-      const currentMinute = Math.floor(seconds / 60);
-
-      if (currentMinute >= billingCountRef.current) {
-        if (appUser && appUser.coins < amount) {
-          Alert.alert('Insufficient Balance', 'Your call ended due to insufficient gold.');
-          endCall();
-          return;
-        }
-        const performDeduction = async () => {
-          const success = await executeCallTransfer(activeCall.callerId, activeCall.receiverId, amount, activeCall.type as 'audio' | 'video');
-          if (success) {
-            billingCountRef.current += 1;
-          } else {
-            Alert.alert('Error', 'Billing failed. Ending call.');
-            endCall();
-          }
-        };
-        performDeduction();
-      }
-    }
-  }, [seconds, activeCall?.status, callRole, appUser?.coins]);
 
   const handleCallTermination = React.useCallback(async (session: CallSession | null, role: 'caller' | 'receiver') => {
     if (!activeCall && !session) return;
@@ -159,7 +138,13 @@ export const CallProvider = ({ children }: { children?: React.ReactNode }) => {
     // Store data needed for rating modal
     const dataToStore = session || activeCall;
     if (dataToStore) {
-      setLastCallData({ id: dataToStore.id, receiverId: dataToStore.receiverId, type: dataToStore.type });
+      setLastCallData({ 
+        id: dataToStore.id, 
+        receiverId: dataToStore.receiverId, 
+        type: dataToStore.type,
+        receiverName: dataToStore.receiverName,
+        receiverAvatar: dataToStore.receiverAvatar || null
+      });
     }
 
     const hasStarted = hasCallStartedRef.current;
@@ -167,9 +152,8 @@ export const CallProvider = ({ children }: { children?: React.ReactNode }) => {
 
     if (role === 'caller' && hasStarted) {
       setShowRatingModal(true);
-    } else {
-      router.replace(role === 'caller' ? '/(men)' : '/(women)');
-    }
+    } 
+    router.replace(role === 'caller' ? '/(men)' : '/(women)');
   }, [activeCall, cleanupCall, router]);
 
   const endCall = React.useCallback(async () => {
@@ -194,7 +178,7 @@ export const CallProvider = ({ children }: { children?: React.ReactNode }) => {
           receiverAvatar: activeCall.receiverAvatar,
           duration: (Math.floor(durationSecs / 60)).toString().padStart(2, '0') + ":" + (durationSecs % 60).toString().padStart(2, '0'),
           durationInMinutes: billingMins,
-          cost: Math.max(1, billingMins) * amount,
+          cost: billingMins * amount,
           type: type as 'audio' | 'video',
           timestamp: null
         });
@@ -207,20 +191,68 @@ export const CallProvider = ({ children }: { children?: React.ReactNode }) => {
       else router.replace('/(men)');
     }
   }, [activeCall, seconds, callRole, router, cleanupCall, handleCallTermination]);
+  
+  // Billing Logic (Recurring with grace periods)
+  useEffect(() => {
+    if (callRole === 'caller' && activeCall?.status === 'accepted') {
+      const amount = activeCall.type === 'audio' ? 10 : 60;
+      
+      let shouldBill = false;
+      if (activeCall.type === 'audio') {
+        // Audio: Bill at 10s of every minute (10s, 70s, 130s...)
+        if (seconds % 60 === 10 && Math.floor(seconds / 60) >= billingCountRef.current) {
+          shouldBill = true;
+        }
+      } else {
+        // Video: Bill at 60s of every minute (60s, 120s, 180s...)
+        if (seconds > 0 && seconds % 60 === 0 && Math.floor(seconds / 60) > billingCountRef.current) {
+          shouldBill = true;
+        }
+      }
+
+      // Check if we already processed this specific second to prevent double-billing due to state updates
+      if (shouldBill && lastBilledSecondRef.current !== seconds) {
+        if (appUser && appUser.coins < amount) {
+          Alert.alert('Insufficient Balance', 'Your call ended due to insufficient gold.');
+          endCall();
+          return;
+        }
+        
+        lastBilledSecondRef.current = seconds; // Lock this second immediately
+
+        const performDeduction = async () => {
+          console.log(`[Billing] Starting deduction for ${activeCall.type} at ${seconds}s (billing count: ${billingCountRef.current})`);
+          const success = await executeCallTransfer(activeCall.callerId, activeCall.receiverId, amount, activeCall.type as 'audio' | 'video');
+          if (success) {
+            billingCountRef.current += 1;
+            console.log(`[Agora Context] [Billing] Deducted ${amount} coins for ${activeCall.type} minute ${billingCountRef.current}`);
+          } else {
+            console.error(`[Agora Context] [Billing] FAILED for ${activeCall.type}`);
+            Alert.alert('Error', 'Billing failed. Ending call.');
+            endCall();
+          }
+        };
+        performDeduction();
+      }
+    }
+  }, [seconds, activeCall, callRole, appUser?.coins, endCall]);
 
 
   const startCall = React.useCallback(async (sessionId: string, role: 'caller' | 'receiver', type: 'audio' | 'video') => {
+    console.log('[Agora Context] startCall initiated for session:', sessionId);
     if (pendingSessionId.current === sessionId) return;
 
     pendingSessionId.current = sessionId;
     setCallRole(role);
     setSeconds(0);
     billingCountRef.current = 0;
+    lastBilledSecondRef.current = -1;
     hasCallStartedRef.current = false;
     setIsMinimized(false);
     setRemoteUid(null);
     setIsMuted(false);
     setIsSpeaker(true);
+    setIsCameraOn(true);
 
     if (AGORA_APP_ID === '') {
       console.error('[Agora Context] AGORA_APP_ID is missing in .env');
@@ -253,13 +285,14 @@ export const CallProvider = ({ children }: { children?: React.ReactNode }) => {
 
         engine.current.registerEventHandler({
           onJoinChannelSuccess: (connection: RtcConnection, elapsed: number) => {
-            console.log('[Agora Context] Local user joined channel:', connection.channelId);
+            console.log('[Agora Context] Local user joined channel:', connection.channelId, 'uid:', connection.localUid);
           },
-
-          onUserJoined: (connection: RtcConnection, remoteUid: number, elapsed: number) => {
-            setRemoteUid(remoteUid);
+          onUserJoined: (connection: RtcConnection, uid: number, elapsed: number) => {
+            console.log('[Agora Context] Remote user joined channel:', uid);
+            setRemoteUid(uid);
           },
-          onUserOffline: (connection: RtcConnection, remoteUid: number, reason: UserOfflineReasonType) => {
+          onUserOffline: (connection: RtcConnection, uid: number, reason: UserOfflineReasonType) => {
+            console.log('[Agora Context] Remote user offline:', uid, 'reason:', reason);
             setRemoteUid(null);
             endCall();
           },
@@ -279,22 +312,21 @@ export const CallProvider = ({ children }: { children?: React.ReactNode }) => {
         setIsSpeaker(initialSpeaker);
         engine.current.setEnableSpeakerphone(initialSpeaker);
 
-        if (type === 'video') {
-          engine.current.enableVideo();
-          engine.current.startPreview();
-        } else {
-          engine.current.disableVideo();
-        }
-
         setIsEngineReady(true);
-
         console.log('[Agora Context] Engine initialized successfully');
       } catch (err) {
-
         console.error('[Agora Context] Fatal Error during initialization:', err);
         Alert.alert('Calling Error', 'A fatal error occurred while starting the call.');
         return;
       }
+    }
+
+    // Ensure video/audio is correctly enabled for the current call type
+    if (type === 'video') {
+      engine.current?.enableVideo();
+      engine.current?.startPreview();
+    } else {
+      engine.current?.disableVideo();
     }
 
 
@@ -307,9 +339,14 @@ export const CallProvider = ({ children }: { children?: React.ReactNode }) => {
       return;
     }
 
-    engine.current.joinChannel(token, sessionId, 0, {
+    console.log(`[Agora Context] Attempting to join channel: ${sessionId} as ${role} with token: ${token ? 'Valid' : 'MISSING'}`);
+    const joinCode = engine.current.joinChannel(token, sessionId, 0, {
       clientRoleType: ClientRoleType.ClientRoleBroadcaster,
     });
+    
+    if (joinCode !== 0) {
+      console.error('[Agora Context] joinChannel failed with code:', joinCode);
+    }
 
 
 
@@ -371,10 +408,13 @@ export const CallProvider = ({ children }: { children?: React.ReactNode }) => {
   const submitRating = React.useCallback(async () => {
     const data = lastCallData || activeCall;
     if (data && userRating > 0) {
+      setIsSubmittingRating(true);
       try {
         await updateCreatorRating(data.receiverId, userRating);
       } catch (err) {
         console.error('Failed to submit rating:', err);
+      } finally {
+        setIsSubmittingRating(false);
       }
       setShowRatingModal(false);
       setLastCallData(null);
@@ -400,7 +440,7 @@ export const CallProvider = ({ children }: { children?: React.ReactNode }) => {
       activeCall, isMinimized, seconds, remoteUid, isMuted, isSpeaker, isCameraOn,
       showRatingModal, userRating, engine: engine.current,
       startCall, endCall, minimizeCall, restoreCall, toggleMute, toggleSpeaker, toggleCamera,
-      setUserRating, submitRating, skipRating, isEngineReady
+      setUserRating, submitRating, skipRating, isEngineReady, lastCallData, isSubmittingRating
     }}>
       {children}
     </CallContext.Provider>

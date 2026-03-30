@@ -148,7 +148,7 @@ export const VideoCallView: React.FC<VideoCallViewProps> = ({
           {!isLocalVideoMain ? (
             // Remote is Main
             isEngineReady && remoteUid ? (
-              <RtcSurfaceView canvas={{ uid: remoteUid }} style={styles.remoteVideo} />
+              <RtcSurfaceView key={`remote-${remoteUid}`} canvas={{ uid: remoteUid }} style={styles.remoteVideo} />
             ) : (
               <View style={styles.remotePlaceholder}>
                 <LinearGradient
@@ -175,7 +175,7 @@ export const VideoCallView: React.FC<VideoCallViewProps> = ({
           ) : (
             // Local is Main
             isEngineReady && isCameraOn ? (
-              <RtcSurfaceView canvas={{ uid: 0 }} style={styles.remoteVideo} />
+              <RtcSurfaceView key="local-main" canvas={{ uid: 0 }} style={styles.remoteVideo} />
             ) : (
               <View style={styles.remotePlaceholder}>
                 <LinearGradient
@@ -212,7 +212,11 @@ export const VideoCallView: React.FC<VideoCallViewProps> = ({
                 onPress={handleToggleBestie}
                 activeOpacity={0.8}
               >
-                <Ionicons name={isBestie ? "heart" : "heart-outline"} size={26} color="#fff" />
+                <Ionicons 
+                  name={isBestie ? "heart" : "heart-outline"} 
+                  size={26} 
+                  color={isBestie ? "#fff" : "#fff"} 
+                />
                 {!isBestie && <View style={styles.priceTag}><Text style={styles.priceTagText}>10</Text></View>}
               </TouchableOpacity>
 
@@ -238,16 +242,16 @@ export const VideoCallView: React.FC<VideoCallViewProps> = ({
                 {isLocalVideoMain ? (
                   // Remote is Overlay
                   isEngineReady && remoteUid ? (
-                    <RtcSurfaceView canvas={{ uid: remoteUid }} style={styles.localVideo} />
+                    <RtcSurfaceView key={`remote-pip-${remoteUid}`} canvas={{ uid: remoteUid }} style={styles.localVideo} zOrderMediaOverlay={true} />
                   ) : (
-                    <View style={[styles.localVideo, { backgroundColor: '#1E1E24', justifyContent: 'center', alignItems: 'center' }]}>
-                      <Ionicons name="person" size={24} color="#666" />
+                    <View style={[styles.localVideo, { backgroundColor: '#1A0B2E', justifyContent: 'center', alignItems: 'center' }]}>
+                      <Image source={getAvatarSource(participant?.avatar || undefined, participant?.gender === 'man' ? 'man' : 'woman')} style={{ width: 40, height: 40, borderRadius: 20 }} />
                     </View>
                   )
                 ) : (
-                  // Local is Overlay
+                  // If Remote is Main, PiP shows Local
                   isEngineReady && isCameraOn ? (
-                    <RtcSurfaceView canvas={{ uid: 0 }} style={styles.localVideo} />
+                    <RtcSurfaceView key="local-pip" canvas={{ uid: 0 }} style={styles.localVideo} zOrderMediaOverlay={true} />
                   ) : (
                     <View style={[styles.localVideo, { backgroundColor: '#1E1E24', justifyContent: 'center', alignItems: 'center' }]}>
                       <Ionicons name="videocam-off" size={24} color="#FF4D67" />
@@ -403,7 +407,7 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     elevation: 6
   },
-  activeHeartBadge: { backgroundColor: '#FF4D67', borderColor: '#FF4D67' },
+  activeHeartBadge: { backgroundColor: '#FF0000', borderColor: '#FF0000' },
   priceTag: {
     position: 'absolute',
     top: -8,

@@ -134,8 +134,13 @@ export default function CallRoom() {
   useEffect(() => {
     if (appUser && session) {
       const creatorId = role === 'caller' ? session.receiverId : session.callerId;
-      setIsBestie(appUser.besties?.includes(creatorId) || false);
+      const isActuallyBestie = Array.isArray(appUser.besties) && appUser.besties.includes(creatorId);
+      console.log(`[Call Room] Bestie Check: CreatorId=${creatorId}, isBestie=${isActuallyBestie}, User=${appUser.id}`);
+      setIsBestie(isActuallyBestie);
     }
+  }, [appUser?.besties, session, role]);
+
+  useEffect(() => {
     if (session?.meta?.lastGift) {
       const gift = session.meta.lastGift;
       if (gift.timestamp > lastProcessedGiftTime.current) {
@@ -279,26 +284,6 @@ export default function CallRoom() {
         </TouchableOpacity>
       </Modal>
 
-      <Modal transparent visible={showRatingModal} animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={[styles.ratingCard, { backgroundColor: colors.card }]}>
-            <Image source={getAvatarSource(participant?.avatar || undefined, participant?.gender || (role === 'caller' ? 'woman' : 'man'))} style={[styles.placeholderAvatarLarge, { width: 100, height: 100, borderRadius: 50, marginBottom: 15 }]} />
-            <Text style={[styles.ratingTitle, { color: colors.text }]}>Rate Your Call</Text>
-            <Text style={[styles.ratingSub, { color: colors.subText }]}>How was your conversation with {participant?.name}?</Text>
-            <View style={styles.starsRow}>
-              {[1, 2, 3, 4, 5].map(star => (
-                <TouchableOpacity key={star} onPress={() => setUserRating(star)}>
-                  <Ionicons name={userRating >= star ? "star" : "star-outline"} size={40} color={userRating >= star ? "#FFD700" : colors.subText} />
-                </TouchableOpacity>
-              ))}
-            </View>
-            <TouchableOpacity style={[styles.submitRatingBtn, { opacity: userRating === 0 ? 0.5 : 1 }]} onPress={submitRatingFromContext} disabled={userRating === 0}>
-              <Text style={styles.submitRatingText}>Submit Rating</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.skipBtn} onPress={skipRating}><Text style={[styles.skipText, { color: colors.subText }]}>Skip</Text></TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -319,12 +304,6 @@ const styles = StyleSheet.create({
   gridTokenInner: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   gridTokenText: { color: '#4A2F00', fontSize: 22, fontWeight: '900' },
   tokenLabel: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase' },
-  ratingCard: { width: width * 0.85, padding: 30, borderRadius: 32, alignItems: 'center' },
-  ratingTitle: { fontSize: 24, fontWeight: '900', marginBottom: 10 },
-  ratingSub: { fontSize: 16, textAlign: 'center', marginBottom: 25 },
-  starsRow: { flexDirection: 'row', gap: 12, marginBottom: 30 },
-  submitRatingBtn: { backgroundColor: '#FF4D67', paddingVertical: 16, paddingHorizontal: 40, borderRadius: 24, width: '100%', alignItems: 'center', marginBottom: 15 },
-  submitRatingText: { color: '#fff', fontSize: 18, fontWeight: '700' },
   skipBtn: { padding: 10 },
   skipText: { fontSize: 14, fontWeight: '600' },
 });

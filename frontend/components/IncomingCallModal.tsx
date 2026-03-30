@@ -51,9 +51,8 @@ export default function IncomingCallModal({ visible, session, onAccept, onReject
   if (!session) return null;
 
   return (
-    <Modal visible={visible} transparent animationType="fade">
+    <Modal visible={visible} transparent={false} animationType="fade">
       <View style={styles.container}>
-        <BlurView intensity={80} style={StyleSheet.absoluteFill} tint="dark" />
         
         <Animated.View style={[styles.content, { opacity: opacityAnim }]}>
           <Text style={styles.incomingText}>INCOMING {session.type.toUpperCase()} CALL</Text>
@@ -101,6 +100,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#FFFFFF',
   },
   content: {
     alignItems: 'center',
@@ -136,13 +136,13 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 77, 103, 0.3)',
   },
   callerName: {
-    color: '#fff',
+    color: '#1A1A1A',
     fontSize: 32,
     fontWeight: '800',
     marginBottom: 8,
   },
   callerSub: {
-    color: '#a0a0a0',
+    color: '#666666',
     fontSize: 16,
     marginBottom: 80,
   },
@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
   btnLabel: {
     position: 'absolute',
     bottom: -30,
-    color: '#fff',
+    color: '#444444',
     fontWeight: '600',
     fontSize: 14,
   }

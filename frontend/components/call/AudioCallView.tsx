@@ -134,7 +134,7 @@ export const AudioCallView: React.FC<AudioCallViewProps> = ({
             </View>
 
             {role === 'caller' && remoteUid && (
-              <View style={{ position: 'relative' }}>
+              <View style={[StyleSheet.absoluteFill, { justifyContent: 'center', alignItems: 'center', zIndex: 100 }]}>
                 {heartPops.map(heart => (
                   <HeartPop
                     key={heart.id}
@@ -306,8 +306,8 @@ const styles = StyleSheet.create({
   leaveGradient: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   heartBadge: {
     position: 'absolute',
-    bottom: 0,
-    right: -20,
+    bottom: 5,
+    right: -40,
     width: 52,
     height: 52,
     borderRadius: 26,
@@ -323,7 +323,7 @@ const styles = StyleSheet.create({
     elevation: 6,
     zIndex: 100,
   },
-  activeHeartBadge: { backgroundColor: '#FF4D67', borderColor: '#FF4D67' },
+  activeHeartBadge: { backgroundColor: '#FF0000', borderColor: '#FF0000' },
   priceTag: {
     position: 'absolute',
     top: -8,
@@ -336,7 +336,7 @@ const styles = StyleSheet.create({
     borderColor: '#4A2F00',
   },
   priceTagText: { fontSize: 10, fontWeight: '900', color: '#4A2F00' },
-  giftBadgeContainer: { position: 'absolute', bottom: 0, left: -20, zIndex: 100 },
+  giftBadgeContainer: { position: 'absolute', bottom: 5, left: -40, zIndex: 100 },
   giftBadge: { width: 52, height: 52, borderRadius: 26, backgroundColor: '#fff', borderWidth: 2, borderColor: '#FFD700', overflow: 'hidden', shadowColor: '#FFD700', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 6 },
   giftBadgeGradient: { flex: 1, padding: 3, justifyContent: 'center', alignItems: 'center' },
   notificationBubble: { position: 'absolute', top: 120, alignSelf: 'center', backgroundColor: 'rgba(255, 77, 103, 0.9)', paddingHorizontal: 25, paddingVertical: 12, borderRadius: 30, zIndex: 1000 },

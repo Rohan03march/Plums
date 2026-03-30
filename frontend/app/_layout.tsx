@@ -14,6 +14,7 @@ import { subscribeToIncomingCalls, updateCallSession, CallSession } from '../ser
 import { useRouter } from 'expo-router';
 import { CallProvider, useCall } from '../context/CallContext';
 import FloatingCallPreview from '../components/FloatingCallPreview';
+import RatingModal from '../components/RatingModal';
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
@@ -84,6 +85,8 @@ function AppView({ onLayoutRootView }: { onLayoutRootView: () => Promise<void> }
       />
 
       <FloatingCallPreview />
+      
+      <RatingModal />
     </View>
   );
 }

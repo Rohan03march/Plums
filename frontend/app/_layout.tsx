@@ -1,7 +1,8 @@
 import 'react-native-get-random-values';
 import { Stack } from 'expo-router';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { View } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { Asset } from 'expo-asset';
@@ -21,11 +22,16 @@ function AppView({ onLayoutRootView }: { onLayoutRootView: () => Promise<void> }
   const { appUser, user } = useAuth();
   const { startCall } = useCall();
   const [incomingCall, setIncomingCall] = useState<CallSession | null>(null);
+  const handledCallIds = useRef<Set<string>>(new Set());
   const router = useRouter();
 
   useEffect(() => {
     if (user && appUser?.role === 'woman') {
       const unsubscribe = subscribeToIncomingCalls(user.uid, (call) => {
+        if (call && handledCallIds.current.has(call.id)) {
+          setIncomingCall(null);
+          return;
+        }
         setIncomingCall(call);
       });
       return () => unsubscribe();
@@ -34,10 +40,14 @@ function AppView({ onLayoutRootView }: { onLayoutRootView: () => Promise<void> }
 
   const handleAccept = async () => {
     if (incomingCall) {
-      await updateCallSession(incomingCall.id, 'accepted');
       const sessionId = incomingCall.id;
       const type = incomingCall.type;
+      
+      // Prevent UI flickering by marking this ID as handled
+      handledCallIds.current.add(sessionId);
       setIncomingCall(null);
+      
+      await updateCallSession(sessionId, 'accepted');
       await startCall(sessionId, 'receiver', type);
       router.push({ pathname: '/call/[id]', params: { id: sessionId, role: 'receiver', type } });
     }
@@ -45,8 +55,10 @@ function AppView({ onLayoutRootView }: { onLayoutRootView: () => Promise<void> }
 
   const handleReject = async () => {
     if (incomingCall) {
-      await updateCallSession(incomingCall.id, 'rejected');
+      const sessionId = incomingCall.id;
+      handledCallIds.current.add(sessionId);
       setIncomingCall(null);
+      await updateCallSession(sessionId, 'rejected');
     }
   };
 
@@ -123,13 +135,15 @@ export default function RootLayout() {
   }
 
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <CallProvider>
-          <AppView onLayoutRootView={onLayoutRootView} />
-        </CallProvider>
-      </AuthProvider>
-    </ThemeProvider>
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <CallProvider>
+            <AppView onLayoutRootView={onLayoutRootView} />
+          </CallProvider>
+        </AuthProvider>
+      </ThemeProvider>
+    </SafeAreaProvider>
   );
 }
 

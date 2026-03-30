@@ -68,7 +68,7 @@ const fetchAgoraToken = async (channelName: string, uid: number = 0) => {
 
 
 
-export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const CallProvider = ({ children }: { children?: React.ReactNode }) => {
   const router = useRouter();
   const { appUser } = useAuth();
 
@@ -313,12 +313,9 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 
 
-    // Automatically navigate to the call screen
-    router.push({
-      pathname: '/call/[id]',
-      params: { id: sessionId, role, type }
-    });
-
+    // Note: Navigation is handled by the calling component (e.g. Profile or Layout)
+    // to avoid redundant pushes when already on the call screen.
+    
     if (sessionUnsubscribe.current) sessionUnsubscribe.current();
     sessionUnsubscribe.current = subscribeToCallSession(sessionId, (updatedSession) => {
       setActiveCall(updatedSession);

@@ -23,7 +23,7 @@ const AuthContext = createContext<AuthContextType>({
   setMockUser: async () => {},
 });
 
-export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+export const AuthProvider = ({ children }: { children?: React.ReactNode }) => {
   const [user, setUser] = useState<{ uid: string; phoneNumber?: string | null; isAnonymous?: boolean } | null>(null);
   const [appUser, setAppUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);

@@ -14,7 +14,8 @@ const RazorpayCheckout = NativeModules.RazorpayCheckout
   ? require('react-native-razorpay').default
   : null;
 
-import { Modal, Pressable, SafeAreaView } from 'react-native';
+import { Modal, Pressable } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 
 const { width } = Dimensions.get('window');

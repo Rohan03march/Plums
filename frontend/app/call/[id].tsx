@@ -110,7 +110,7 @@ export default function CallRoom() {
     };
   }, [pulseAnim, floatAnim]);
 
-const HeartPop = ({ x, y, onComplete }: { x: number, y: number, onComplete: () => void }) => {
+const HeartPop = ({ x, y, onComplete }: { x: number, y: number, onComplete: () => void, key?: any }) => {
   const anim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.timing(anim, { toValue: 1, duration: 1500, easing: Easing.out(Easing.ease), useNativeDriver: true }).start(onComplete);
@@ -132,7 +132,7 @@ const HeartPop = ({ x, y, onComplete }: { x: number, y: number, onComplete: () =
   );
 };
 
-const CoinJump = ({ onComplete }: { onComplete: () => void }) => {
+const CoinJump = ({ onComplete }: { onComplete: () => void, key?: any }) => {
   const anim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.timing(anim, { toValue: 1, duration: 800, easing: Easing.out(Easing.quad), useNativeDriver: true }).start(onComplete);
@@ -303,7 +303,7 @@ const CoinJump = ({ onComplete }: { onComplete: () => void }) => {
       </View>
       {giftNotification && <View style={styles.notificationBubble}><Text style={styles.notificationText}>{giftNotification}</Text></View>}
       <View style={styles.mainArea}>
-        {(loading || (session?.status === 'ringing' && type !== 'video')) ? (
+        {(loading || (type !== 'video' && (session?.status === 'ringing' || !remoteUid))) ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#FF4D67" />
             <Text style={[styles.loadingText, { color: colors.subText }]}>{role === 'caller' ? (session?.status === 'ringing' ? 'Ringing...' : 'Calling...') : 'Connecting...'}</Text>
@@ -382,7 +382,7 @@ const CoinJump = ({ onComplete }: { onComplete: () => void }) => {
                   ))}
                 </View>
 
-                {role === 'caller' && (
+                {role === 'caller' && remoteUid && (
                   <View style={{ position: 'relative' }}>
                     {heartPops.map(heart => (
                       <HeartPop key={heart.id} x={heart.x} y={heart.y} onComplete={() => setHeartPops(prev => prev.filter(h => h.id !== heart.id))} />
@@ -416,26 +416,28 @@ const CoinJump = ({ onComplete }: { onComplete: () => void }) => {
               </View>
               <Text style={[styles.userName, { color: colors.text }]}>{role === 'caller' ? session?.receiverName : session?.callerName}</Text>
               
-              <View style={styles.waveformRow}>
-                {[1, 2, 3, 4, 5, 6, 7, 8, 7, 6, 5, 4, 3, 2, 1].map((i, idx) => (
-                  <Animated.View 
-                    key={idx} 
-                    style={[
-                      styles.waveformBar, 
-                      { 
-                        height: 8 + Math.random() * 20,
-                        backgroundColor: colors.primary,
-                        transform: [{ 
-                          scaleY: pulseAnim.interpolate({
-                            inputRange: [1, 1.1],
-                            outputRange: [1, 1.5 + (i % 3) * 0.3]
-                          }) 
-                        }]
-                      }
-                    ]} 
-                  />
-                ))}
-              </View>
+              {remoteUid && (
+                <View style={styles.waveformRow}>
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 7, 6, 5, 4, 3, 2, 1].map((i, idx) => (
+                    <Animated.View 
+                      key={idx} 
+                      style={[
+                        styles.waveformBar, 
+                        { 
+                          height: 8 + Math.random() * 20,
+                          backgroundColor: colors.primary,
+                          transform: [{ 
+                            scaleY: pulseAnim.interpolate({
+                              inputRange: [1, 1.1],
+                              outputRange: [1, 1.5 + (i % 3) * 0.3]
+                            }) 
+                          }]
+                        }
+                      ]} 
+                    />
+                  ))}
+                </View>
+              )}
 
               {!remoteUid && seconds === 0 && (
                 <View style={styles.connectingStatus}>

@@ -8,15 +8,6 @@
     "scheme": "frontend",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.rohan.callapp",
-      "googleServicesFile": "./GoogleService-Info.plist",
-      "infoPlist": {
-        "NSCameraUsageDescription": "This app uses the camera for video calling.",
-        "NSMicrophoneUsageDescription": "This app uses the microphone for audio and video calling."
-      }
-    },
     "android": {
       "package": "com.rohan.callapp",
       "googleServicesFile": "./google-services.json",

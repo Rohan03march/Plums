@@ -1,10 +1,18 @@
+# Exclude siblings and git history
+../admin-dashboard/
+../.git/
+.git/
+
+# Standard Expo Exclusions
 node_modules/
 .expo/
-.next/
 dist/
 build/
-android/
+
+# Android only
 ios/
+
+# Assets & Files
 *.apk
 *.ipa
 .env.local

@@ -53,7 +53,7 @@ export default function PrivacyPolicyPage() {
             Privacy Policy
           </h1>
           <p className="text-gray-400 text-lg max-w-2xl mx-auto leading-relaxed">
-            Your trust is our foundation. This policy details how CallApp handles your sensitive data and permissions to provide a secure communication experience.
+            Your trust is our foundation. This policy details how Plums handles your sensitive data and permissions to provide a secure communication experience.
           </p>
           <div className="mt-8 flex items-center justify-center gap-4 text-sm text-gray-500 font-medium">
             <span className="flex items-center gap-1.5"><Globe className="w-4 h-4" /> Global Coverage</span>
@@ -98,7 +98,7 @@ export default function PrivacyPolicyPage() {
               </p>
               <div className="space-y-4">
                 <a
-                  href="mailto:support@callapp.com"
+                  href="mailto:info@plums.com"
                   className="flex items-center gap-3 group w-fit"
                 >
                   <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center group-hover:bg-pink-500/10 group-hover:text-pink-500 transition-all">

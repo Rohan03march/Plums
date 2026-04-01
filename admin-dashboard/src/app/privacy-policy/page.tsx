@@ -41,7 +41,7 @@ export default function PrivacyPolicyPage() {
     <div className="min-h-screen bg-[#0a0f18] text-white">
       {/* Background Glow */}
       <div className="fixed top-0 left-1/2 -translate-x-1/2 w-full h-[500px] bg-pink-500/10 blur-[120px] pointer-events-none" />
-      
+
       <div className="relative max-w-4xl mx-auto px-6 py-20 lg:py-32">
         {/* Header */}
         <header className="mb-16 text-center">
@@ -65,7 +65,7 @@ export default function PrivacyPolicyPage() {
         {/* Content Sections */}
         <div className="space-y-8">
           {sections.map((section) => (
-            <div 
+            <div
               key={section.id}
               className="group p-8 lg:p-10 bg-white/5 border border-white/10 rounded-[2.5rem] hover:bg-white/[0.07] hover:border-white/20 transition-all duration-300"
             >
@@ -97,8 +97,8 @@ export default function PrivacyPolicyPage() {
                 Our privacy team is available to help clarify any points regarding your data safety and usage.
               </p>
               <div className="space-y-4">
-                <a 
-                  href="mailto:support@callapp.com" 
+                <a
+                  href="mailto:support@callapp.com"
                   className="flex items-center gap-3 group w-fit"
                 >
                   <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center group-hover:bg-pink-500/10 group-hover:text-pink-500 transition-all">
@@ -108,22 +108,22 @@ export default function PrivacyPolicyPage() {
                 </a>
               </div>
             </div>
-            
+
             <div className="bg-gradient-to-br from-pink-500/10 to-transparent p-8 rounded-3xl border border-pink-500/20">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-10 h-10 bg-pink-500 rounded-xl flex items-center justify-center font-bold text-white shadow-lg shadow-pink-500/20">
                   C
                 </div>
-                <h4 className="text-xl font-bold text-white">CallApp</h4>
+                <h4 className="text-xl font-bold text-white">Plums</h4>
               </div>
               <p className="text-gray-400 text-sm leading-relaxed italic">
                 "We believe that privacy is not just a feature, but a fundamental human right. Our systems are built from the ground up to respect that."
               </p>
             </div>
           </div>
-          
+
           <div className="mt-20 text-center text-gray-600 text-sm">
-            &copy; 2026 CallApp Inc. All rights reserved.
+            &copy; 2026 Plums Inc. All rights reserved.
           </div>
         </footer>
       </div>

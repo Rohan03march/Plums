@@ -1,10 +1,10 @@
-node_modules
-.expo
-.next
-dist
-build
-android/build
-ios/build
+node_modules/
+.expo/
+.next/
+dist/
+build/
+android/
+ios/
 *.apk
 *.ipa
 .env.local

@@ -109,7 +109,6 @@ export default function RootLayout() {
           require('../assets/images/3d_boy_2.jpg'),
           require('../assets/images/3d_boy_3.jpg'),
           require('../assets/images/3d_boy_4.jpg'),
-          require('../assets/images/friend_plums.jpg'),
         ];
 
         const cacheImages = imagesToCache.map(image => {

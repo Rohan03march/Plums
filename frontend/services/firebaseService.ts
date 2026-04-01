@@ -42,20 +42,20 @@ export interface User {
 }
 
 export const AVATAR_MAPPING: Record<string, any> = {
-  'boy_1': require('../assets/images/3d_boy_1.png'),
-  'boy_2': require('../assets/images/3d_boy_2.png'),
-  'boy_3': require('../assets/images/3d_boy_3.png'),
-  'boy_4': require('../assets/images/3d_boy_4.png'),
-  'boy_5': require('../assets/images/3d_boy_5.png'),
-  'boy_6': require('../assets/images/3d_boy_6.png'),
-  'boy_7': require('../assets/images/3d_boy_7.png'),
-  'girl_1': require('../assets/images/3d_avatar_1.png'),
-  'girl_2': require('../assets/images/3d_avatar_2.png'),
-  'girl_3': require('../assets/images/3d_avatar_3.png'),
-  'girl_4': require('../assets/images/3d_avatar_4.png'),
-  'girl_5': require('../assets/images/3d_avatar_5.png'),
-  'girl_6': require('../assets/images/3d_avatar_6.png'),
-  'girl_7': require('../assets/images/3d_avatar_7.png'),
+  'boy_1': require('../assets/images/3d_boy_1.jpg'),
+  'boy_2': require('../assets/images/3d_boy_2.jpg'),
+  'boy_3': require('../assets/images/3d_boy_3.jpg'),
+  'boy_4': require('../assets/images/3d_boy_4.jpg'),
+  'boy_5': require('../assets/images/3d_boy_5.jpg'),
+  'boy_6': require('../assets/images/3d_boy_6.jpg'),
+  'boy_7': require('../assets/images/3d_boy_7.jpg'),
+  'girl_1': require('../assets/images/3d_avatar_1.jpg'),
+  'girl_2': require('../assets/images/3d_avatar_2.jpg'),
+  'girl_3': require('../assets/images/3d_avatar_3.jpg'),
+  'girl_4': require('../assets/images/3d_avatar_4.jpg'),
+  'girl_5': require('../assets/images/3d_avatar_5.jpg'),
+  'girl_6': require('../assets/images/3d_avatar_6.jpg'),
+  'girl_7': require('../assets/images/3d_avatar_7.jpg'),
 };
 
 export const getAvatarSource = (avatarId: string | undefined, defaultType: 'man' | 'woman') => {
@@ -70,8 +70,8 @@ export const getAvatarSource = (avatarId: string | undefined, defaultType: 'man'
   }
   // Default fallbacks
   return defaultType === 'man' 
-    ? require('../assets/images/3d_boy_1.png') 
-    : require('../assets/images/3d_avatar_1.png');
+    ? require('../assets/images/3d_boy_1.jpg') 
+    : require('../assets/images/3d_avatar_1.jpg');
 };
 
 export interface Transaction {

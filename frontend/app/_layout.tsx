@@ -44,11 +44,11 @@ function AppView({ onLayoutRootView }: { onLayoutRootView: () => Promise<void> }
     if (incomingCall) {
       const sessionId = incomingCall.id;
       const type = incomingCall.type;
-      
+
       // Prevent UI flickering by marking this ID as handled
       handledCallIds.current.add(sessionId);
       setIncomingCall(null);
-      
+
       await updateCallSession(sessionId, 'accepted');
       await startCall(sessionId, 'receiver', type);
       router.push({ pathname: '/call/[id]', params: { id: sessionId, role: 'receiver', type } });
@@ -77,7 +77,7 @@ function AppView({ onLayoutRootView }: { onLayoutRootView: () => Promise<void> }
         <Stack.Screen name="call/[id]" options={{ title: 'Call Room' }} />
       </Stack>
 
-      <IncomingCallModal 
+      <IncomingCallModal
         visible={!!incomingCall}
         session={incomingCall}
         onAccept={handleAccept}
@@ -85,7 +85,7 @@ function AppView({ onLayoutRootView }: { onLayoutRootView: () => Promise<void> }
       />
 
       <FloatingCallPreview />
-      
+
       <RatingModal />
     </View>
   );

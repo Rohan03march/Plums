@@ -8,6 +8,11 @@
     "scheme": "frontend",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#6C3EF4"
+    },
     "android": {
       "package": "com.rohan.callapp",
       "googleServicesFile": "./google-services.json",

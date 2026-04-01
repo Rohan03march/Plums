@@ -17,3 +17,5 @@ ios/
 *.ipa
 .env.local
 .env.*.local
+
+.env

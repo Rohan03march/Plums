@@ -78,10 +78,10 @@ export default function WalletScreen() {
         currency: 'INR',
         key: RAZORPAY_KEY_ID,
         amount: order.amount,
-        name: 'CallApp',
+        name: 'Plums',
         order_id: order.id,
         prefill: {
-          email: `${appUser.phone}@callapp.com`,
+          email: `${appUser.phone}@plums.com`,
           contact: appUser.phone,
           name: appUser.name,
           ...(appUser?.paymentMethod ? { method: appUser.paymentMethod } : {})
@@ -108,13 +108,13 @@ export default function WalletScreen() {
                   "key": "${RAZORPAY_KEY_ID}",
                   "amount": "${order.amount}",
                   "currency": "INR",
-                  "name": "CallApp",
+                  "name": "Plums",
                   "description": "Purchase ${plan.coins} Gold",
                   "image": "https://i.imgur.com/3g7nmJC.png",
                   "order_id": "${order.id}",
                   "prefill": {
                     "name": "${appUser.name}",
-                    "email": "${appUser.phone}@callapp.com",
+                    "email": "${appUser.phone}@plums.com",
                     "contact": "${appUser.phone}",
                     ${appUser?.paymentMethod ? `"method": "${appUser.paymentMethod}",` : ''}
                   },
@@ -309,7 +309,7 @@ export default function WalletScreen() {
       {plansLoading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#FF4D67" />
-          <Text style={[styles.loadingText, { color: colors.subText }]}>Fetching best offers...</Text>
+          <Text style={[styles.loadingText, { color: colors.subText }]}>Loading best offers...</Text>
         </View>
       ) : (
         <FlatList

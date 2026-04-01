@@ -26,6 +26,8 @@
         "foregroundImage": "./assets/images/icon.png"
       },
       "splash": {
+        "image": "./assets/images/splash.png",
+        "resizeMode": "contain",
         "backgroundColor": "#6C3EF4"
       },
       "edgeToEdgeEnabled": true,
@@ -39,7 +41,8 @@
       "expo-router",
       "expo-asset",
       "expo-font",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-splash-screen"
     ],
     "experiments": {
       "typedRoutes": true,

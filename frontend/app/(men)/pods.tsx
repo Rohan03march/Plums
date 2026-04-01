@@ -34,17 +34,17 @@ export default function Pods() {
   }, [authLoading]);
 
   const renderItem = ({ item }: { item: FirestorePod }) => (
-    <TouchableOpacity 
-      style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]} 
+    <TouchableOpacity
+      style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
       activeOpacity={0.8}
       onPress={() => router.push({ pathname: '/call/[id]', params: { id: item.id } })}
     >
-      <Image 
-        source={require('../../assets/images/3d_avatar_2.png')} // Fallback or dynamic based on hostId
-        style={styles.image} 
+      <Image
+        source={require('../../assets/images/3d_avatar_2.jpg')} // Fallback or dynamic based on hostId
+        style={styles.image}
       />
       <LinearGradient colors={['rgba(0,0,0,0.2)', isDark ? 'rgba(15,15,19,0.95)' : 'rgba(255,255,255,0.95)']} style={styles.gradient} />
-      
+
       <View style={styles.liveBadge}>
         <Ionicons name="radio" size={14} color="#fff" />
         <Text style={styles.liveText}>LIVE</Text>
@@ -53,14 +53,14 @@ export default function Pods() {
       <View style={styles.infoContainer}>
         <Text style={[styles.title, { color: colors.text }]}>{item.title}</Text>
         <Text style={[styles.host, { color: colors.subText }]}>Hosted by {item.hostName}</Text>
-        
+
         <View style={styles.statsRow}>
           <View style={styles.listenersBadge}>
             <Ionicons name="headset" size={16} color="#4CAF50" />
             <Text style={styles.listenersText}>{item.participants} listening</Text>
           </View>
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             style={[styles.joinButton, { backgroundColor: colors.text }]}
             onPress={() => router.push({ pathname: '/call/[id]', params: { id: item.id } })}
           >

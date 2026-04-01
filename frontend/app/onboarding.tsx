@@ -20,21 +20,21 @@ const SLIDES = [
     id: '1',
     title: 'Video Discovery',
     description: 'Meet interesting people from around the world through high-quality video calls.',
-    image: require('../assets/images/onboarding_1.png'),
+    image: require('../assets/images/onboarding_1.jpg'),
     tag: 'Step 01',
   },
   {
     id: '2',
     title: 'Global Connections',
     description: 'Experience instant discovery and live conversations with diverse communities.',
-    image: require('../assets/images/onboarding_2.png'),
+    image: require('../assets/images/onboarding_2.jpg'),
     tag: 'Step 02',
   },
   {
     id: '3',
     title: 'Safe & Secure',
     description: 'Your privacy is our top priority. Enjoy secure, end-to-end encrypted interactions.',
-    image: require('../assets/images/onboarding_3.png'),
+    image: require('../assets/images/onboarding_3.jpg'),
     tag: 'Step 03',
   },
 ];
@@ -71,7 +71,7 @@ const Slide = ({ item, index, scrollX }: { item: any; index: number; scrollX: an
 
       <LinearGradient
         colors={[
-          'transparent', 
+          'transparent',
           isDark ? 'rgba(15,15,19,0.2)' : 'rgba(248, 249, 250, 0.2)',
           isDark ? 'rgba(15,15,19,0.8)' : 'rgba(248, 249, 250, 0.8)',
           isDark ? 'rgba(15,15,19,1)' : 'rgba(248, 249, 250, 1)',
@@ -82,20 +82,20 @@ const Slide = ({ item, index, scrollX }: { item: any; index: number; scrollX: an
       />
 
       <View style={styles.textContainer}>
-        <Animated.View 
+        <Animated.View
           entering={FadeInDown.delay(200).duration(800).springify()}
           style={styles.tagContainer}
         >
           <Text style={[styles.tagText, { color: colors.primary }]}>{item.tag}</Text>
         </Animated.View>
-        
+
         <Animated.Text
           entering={FadeInDown.delay(400).duration(600).springify()}
           style={[styles.title, { color: colors.text }]}
         >
           {item.title}
         </Animated.Text>
-        
+
         <Animated.Text
           entering={FadeInDown.delay(600).duration(600).springify()}
           style={[styles.description, { color: colors.subText }]}
@@ -189,15 +189,15 @@ export default function Onboarding() {
           ))}
         </View>
 
-        <TouchableOpacity 
-          style={[styles.button, { shadowColor: colors.primary }]} 
-          onPress={handleGetStarted} 
+        <TouchableOpacity
+          style={[styles.button, { shadowColor: colors.primary }]}
+          onPress={handleGetStarted}
           activeOpacity={0.93}
         >
-          <LinearGradient 
-            colors={['#FF4D67', '#FF8A9B']} 
-            style={styles.buttonGradient} 
-            start={{ x: 0, y: 0 }} 
+          <LinearGradient
+            colors={['#FF4D67', '#FF8A9B']}
+            style={styles.buttonGradient}
+            start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
           >
             <Text style={styles.buttonText}>Get Started</Text>

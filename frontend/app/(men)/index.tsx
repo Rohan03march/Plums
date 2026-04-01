@@ -12,10 +12,10 @@ import { Timestamp } from 'firebase/firestore';
 const { width } = Dimensions.get('window');
 
 const FEMALE_AVATARS = [
-  require('../../assets/images/3d_avatar_1.png'),
-  require('../../assets/images/3d_avatar_2.png'),
-  require('../../assets/images/3d_avatar_3.png'),
-  require('../../assets/images/3d_avatar_4.png'),
+  require('../../assets/images/3d_avatar_1.jpg'),
+  require('../../assets/images/3d_avatar_2.jpg'),
+  require('../../assets/images/3d_avatar_3.jpg'),
+  require('../../assets/images/3d_avatar_4.jpg'),
 ];
 
 // Memoized Card Component to prevent unnecessary re-renders
@@ -251,7 +251,7 @@ export default function MenHome() {
             onPress: async () => {
               const creator = creators.find(c => c.id === creatorId) || besties.find(c => c.id === creatorId);
               const creatorName = creator?.displayName || creator?.name || 'User';
-              
+
               const newBalance = userGold - 10;
               await updateUserBalance(appUser.id, newBalance);
               await recordTransaction({

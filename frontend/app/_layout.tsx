@@ -98,18 +98,18 @@ export default function RootLayout() {
     async function prepare() {
       try {
         const imagesToCache = [
-          require('../assets/images/onboarding_1.png'),
-          require('../assets/images/onboarding_2.png'),
-          require('../assets/images/onboarding_3.png'),
-          require('../assets/images/3d_avatar_1.png'),
-          require('../assets/images/3d_avatar_2.png'),
-          require('../assets/images/3d_avatar_3.png'),
-          require('../assets/images/3d_avatar_4.png'),
-          require('../assets/images/3d_boy_1.png'),
-          require('../assets/images/3d_boy_2.png'),
-          require('../assets/images/3d_boy_3.png'),
-          require('../assets/images/3d_boy_4.png'),
-          require('../assets/images/friend_plums.png'),
+          require('../assets/images/onboarding_1.jpg'),
+          require('../assets/images/onboarding_2.jpg'),
+          require('../assets/images/onboarding_3.jpg'),
+          require('../assets/images/3d_avatar_1.jpg'),
+          require('../assets/images/3d_avatar_2.jpg'),
+          require('../assets/images/3d_avatar_3.jpg'),
+          require('../assets/images/3d_avatar_4.jpg'),
+          require('../assets/images/3d_boy_1.jpg'),
+          require('../assets/images/3d_boy_2.jpg'),
+          require('../assets/images/3d_boy_3.jpg'),
+          require('../assets/images/3d_boy_4.jpg'),
+          require('../assets/images/friend_plums.jpg'),
         ];
 
         const cacheImages = imagesToCache.map(image => {

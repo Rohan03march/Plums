@@ -10,23 +10,23 @@ import { updateUserProfile } from '../services/firebaseService';
 const { width } = Dimensions.get('window');
 
 const MALE_AVATARS = [
-  require('../assets/images/3d_boy_1.png'),
-  require('../assets/images/3d_boy_2.png'),
-  require('../assets/images/3d_boy_3.png'),
-  require('../assets/images/3d_boy_4.png'),
-  require('../assets/images/3d_boy_5.png'),
-  require('../assets/images/3d_boy_6.png'),
-  require('../assets/images/3d_boy_7.png'),
+  require('../assets/images/3d_boy_1.jpg'),
+  require('../assets/images/3d_boy_2.jpg'),
+  require('../assets/images/3d_boy_3.jpg'),
+  require('../assets/images/3d_boy_4.jpg'),
+  require('../assets/images/3d_boy_5.jpg'),
+  require('../assets/images/3d_boy_6.jpg'),
+  require('../assets/images/3d_boy_7.jpg'),
 ];
 
 const FEMALE_AVATARS = [
-  require('../assets/images/3d_avatar_1.png'),
-  require('../assets/images/3d_avatar_2.png'),
-  require('../assets/images/3d_avatar_3.png'),
-  require('../assets/images/3d_avatar_4.png'),
-  require('../assets/images/3d_avatar_5.png'),
-  require('../assets/images/3d_avatar_6.png'),
-  require('../assets/images/3d_avatar_7.png'),
+  require('../assets/images/3d_avatar_1.jpg'),
+  require('../assets/images/3d_avatar_2.jpg'),
+  require('../assets/images/3d_avatar_3.jpg'),
+  require('../assets/images/3d_avatar_4.jpg'),
+  require('../assets/images/3d_avatar_5.jpg'),
+  require('../assets/images/3d_avatar_6.jpg'),
+  require('../assets/images/3d_avatar_7.jpg'),
 ];
 
 const HOBBIES = [
@@ -80,10 +80,10 @@ export default function Setup() {
       Alert.alert('Hobbies', 'Please select at least one interest');
       return;
     }
-    
-      setLoading(true);
+
+    setLoading(true);
     try {
-      const avatarId = gender === 'male' 
+      const avatarId = gender === 'male'
         ? `boy_${Math.floor(Math.random() * 7) + 1}`
         : `girl_${Math.floor(Math.random() * 7) + 1}`;
 
@@ -134,9 +134,9 @@ export default function Setup() {
           </TouchableOpacity>
           <Text style={[styles.setupTitle, { color: colors.text }]}>Choose Your Gender</Text>
           <Text style={[styles.setupSubtitle, { color: colors.subText }]}>Help us personalize your experience</Text>
-          
+
           <View style={styles.genderContainer}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.genderCard, { backgroundColor: colors.card, borderColor: gender === 'male' ? '#FF4D67' : colors.border }]}
               onPress={() => setGender('male')}
             >
@@ -144,7 +144,7 @@ export default function Setup() {
               <Text style={[styles.genderText, { color: colors.text }]}>Male</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.genderCard, { backgroundColor: colors.card, borderColor: gender === 'female' ? '#FF4D67' : colors.border }]}
               onPress={() => setGender('female')}
             >
@@ -153,8 +153,8 @@ export default function Setup() {
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity 
-            style={[styles.button, !gender && styles.buttonDisabled]} 
+          <TouchableOpacity
+            style={[styles.button, !gender && styles.buttonDisabled]}
             onPress={() => gender && setStep(2)}
             disabled={!gender}
           >
@@ -173,9 +173,9 @@ export default function Setup() {
         colors={isDark ? ['rgba(255, 77, 103, 0.15)', '#0f0f13', '#0f0f13'] : ['rgba(255, 77, 103, 0.05)', '#f8f9fa', '#f8f9fa']}
         style={StyleSheet.absoluteFillObject}
       />
-      
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
       >
         <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -225,13 +225,13 @@ export default function Setup() {
                     onPress={() => toggleHobby(hobby)}
                     style={[
                       styles.hobbyChip,
-                      { 
+                      {
                         backgroundColor: selectedHobbies.includes(hobby) ? '#FF4D67' : colors.card,
                         borderColor: selectedHobbies.includes(hobby) ? '#FF4D67' : colors.border
                       }
                     ]}
                   >
-                    <Text style={{ 
+                    <Text style={{
                       color: selectedHobbies.includes(hobby) ? '#fff' : colors.subText,
                       fontSize: 14,
                       fontWeight: '500'
@@ -244,8 +244,8 @@ export default function Setup() {
             </View>
           )}
 
-          <TouchableOpacity 
-            style={[styles.button, (!displayName || !username) && styles.buttonDisabled]} 
+          <TouchableOpacity
+            style={[styles.button, (!displayName || !username) && styles.buttonDisabled]}
             onPress={onCompleteSetup}
             disabled={(!displayName || !username) || loading}
           >

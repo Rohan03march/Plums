@@ -21,7 +21,7 @@ const SAFETY_TIPS = [
 export default function Profile() {
   const router = useRouter();
   const { isDark, toggleTheme, colors: theme } = useTheme();
-  const { appUser, signOut } = useAuth();
+  const { appUser, user, signOut } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = useCallback(() => {

@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { FlatList } from 'react-native';
+import Animated, { FadeInRight } from 'react-native-reanimated';
 import { useTheme } from '../../context/ThemeContext';
 import { getAvatarSource } from '../../services/firebaseService';
 import { useAuth } from '../../context/AuthContext';
@@ -11,9 +12,9 @@ import { useAuth } from '../../context/AuthContext';
 const { width } = Dimensions.get('window');
 
 const SAFETY_TIPS = [
-  { id: '1', title: 'Protect Privacy', desc: 'Never share personal addresses.', icon: 'shield-checkmark' as const },
-  { id: '2', title: 'Set Boundaries', desc: 'You are in control of the call always.', icon: 'hand-left' as const },
-  { id: '3', title: 'Report Users', desc: 'Block abusive callers immediately.', icon: 'warning' as const },
+  { id: '1', title: 'Privacy First', desc: 'Your safety is our priority. Never share personal addresses or sensitive info.', icon: 'shield-checkmark' as const },
+  { id: '2', title: 'Your Control', desc: 'You have total control. End or block anytime you feel uncomfortable.', icon: 'hand-left' as const },
+  { id: '3', title: 'Instant Safety', desc: 'Zero tolerance for abuse. Use the report button for any unwelcome behavior.', icon: 'warning' as const },
 ];
 
 export default function Profile() {
@@ -116,14 +117,17 @@ export default function Profile() {
           snapToInterval={width * 0.8 + 15}
           decelerationRate="fast"
           contentContainerStyle={{ paddingHorizontal: 20 }}
-          renderItem={({ item }) => (
-            <View style={[styles.carouselCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          renderItem={({ item, index }) => (
+            <Animated.View 
+              entering={FadeInRight.delay(index * 200).duration(600).springify()}
+              style={[styles.carouselCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+            >
               <Ionicons name={item.icon} size={28} color={colors.primary} />
               <View style={styles.carouselText}>
                 <Text style={[styles.carouselTitle, { color: colors.text }]}>{item.title}</Text>
                 <Text style={[styles.carouselDesc, { color: colors.subText }]}>{item.desc}</Text>
               </View>
-            </View>
+            </Animated.View>
           )}
         />
       </View>
@@ -143,12 +147,10 @@ export default function Profile() {
         <ActionItem icon="receipt" title="Payout History" color="#10B981" onPress={() => router.push('/(women)/tx-history')} />
         <ActionItem icon="trending-up" title="Insights & Stats" color="#8B5CF6" onPress={() => {}} />
 
-        <Text style={[styles.sectionTitle, { color: colors.subText, marginTop: 20 }]}>Earn & Refer</Text>
-        <ActionItem icon="gift" title="Refer a Friend" rightText="+10% Bonus" color="#F59E0B" onPress={() => {}} />
-
-        <Text style={[styles.sectionTitle, { color: colors.subText, marginTop: 20 }]}>Support</Text>
-        <ActionItem icon="book" title="Creator Guide" color="#0EA5E9" onPress={() => {}} />
-        <ActionItem icon="help-buoy" title="Help & Support" color="#EC4899" onPress={() => {}} />
+        <Text style={[styles.sectionTitle, { color: colors.subText, marginTop: 20 }]}>About & Support</Text>
+        <ActionItem icon="book" title="Creator Guide" color="#0EA5E9" onPress={() => router.push('/guide')} />
+        <ActionItem icon="help-buoy" title="Help & Support" color="#EC4899" onPress={() => router.push('/support')} />
+        <ActionItem icon="shield-checkmark" title="Privacy Policy" color="#10B981" onPress={() => router.push('/privacy')} />
         
         <Text style={[styles.sectionTitle, { color: colors.subText, marginTop: 20 }]}></Text>
         <ActionItem icon="log-out" title="Logout" color="#FF4D67" onPress={handleLogout} />

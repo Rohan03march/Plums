@@ -34,10 +34,12 @@ export default function WalletScreen() {
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
   const [selectedPlanForWebView, setSelectedPlanForWebView] = useState<any>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [plansLoading, setPlansLoading] = useState(true);
 
   useEffect(() => {
     const unsubscribe = subscribeToGoldPlans((fetchedPlans) => {
       setPlans(fetchedPlans);
+      setPlansLoading(false);
     });
     return () => unsubscribe();
   }, []);
@@ -304,23 +306,30 @@ export default function WalletScreen() {
         </View>
       </View>
 
-      <FlatList
-        data={plans}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
-        numColumns={2}
-        columnWrapperStyle={styles.columnWrapper}
-        contentContainerStyle={styles.listContentGrid}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor="#FF4D67"
-            colors={['#FF4D67']}
-          />
-        }
-      />
+      {plansLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#FF4D67" />
+          <Text style={[styles.loadingText, { color: colors.subText }]}>Fetching best offers...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={plans}
+          keyExtractor={(item) => item.id}
+          renderItem={renderItem}
+          numColumns={2}
+          columnWrapperStyle={styles.columnWrapper}
+          contentContainerStyle={styles.listContentGrid}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor="#FF4D67"
+              colors={['#FF4D67']}
+            />
+          }
+        />
+      )}
 
       <Modal
         visible={showWebView}
@@ -582,5 +591,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(255, 215, 0, 0.05)',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingBottom: 100,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

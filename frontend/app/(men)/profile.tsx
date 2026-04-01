@@ -6,8 +6,9 @@ import { useRouter } from 'expo-router';
 import { FlatList } from 'react-native';
 import Animated, { FadeInRight } from 'react-native-reanimated';
 import { useTheme } from '../../context/ThemeContext';
-import { getAvatarSource } from '../../services/firebaseService';
+import { getAvatarSource, updateUserProfile } from '../../services/firebaseService';
 import { useAuth } from '../../context/AuthContext';
+export { updateUserProfile };
 
 const { width } = Dimensions.get('window');
 
@@ -149,6 +150,33 @@ export default function Profile() {
           toggleValue={isDark}
           onToggle={toggleTheme}
         />
+
+        <Text style={[styles.sectionTitle, { marginTop: 20 }]}>Payment Preference</Text>
+        <View style={styles.paymentPreference}>
+          <TouchableOpacity 
+            style={[
+              styles.payBtn, 
+              appUser?.paymentMethod === 'upi' && { backgroundColor: '#FF4D67' },
+              { borderColor: appUser?.paymentMethod === 'upi' ? '#FF4D67' : theme.border }
+            ]}
+            onPress={() => updateUserProfile(user!.uid, { paymentMethod: 'upi' })}
+          >
+            <MaterialCommunityIcons name="integrated-circuit-chip" size={20} color={appUser?.paymentMethod === 'upi' ? '#fff' : theme.text} />
+            <Text style={[styles.payBtnText, { color: appUser?.paymentMethod === 'upi' ? '#fff' : theme.text }]}>UPI</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[
+              styles.payBtn, 
+              appUser?.paymentMethod === 'card' && { backgroundColor: '#FF4D67' },
+              { borderColor: appUser?.paymentMethod === 'card' ? '#FF4D67' : theme.border }
+            ]}
+            onPress={() => updateUserProfile(user!.uid, { paymentMethod: 'card' })}
+          >
+            <Ionicons name="card" size={20} color={appUser?.paymentMethod === 'card' ? '#fff' : theme.text} />
+            <Text style={[styles.payBtnText, { color: appUser?.paymentMethod === 'card' ? '#fff' : theme.text }]}>Card</Text>
+          </TouchableOpacity>
+        </View>
 
         <Text style={[styles.sectionTitle, { marginTop: 20 }]}>History</Text>
         <ActionItem icon="time" title="Call History" color="#3B82F6" onPress={() => router.push('/(men)/call-history')} />
@@ -310,5 +338,24 @@ const styles = StyleSheet.create({
     color: '#FFD700',
     fontWeight: '700',
     marginRight: 10,
+  },
+  paymentPreference: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 10,
+  },
+  payBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    gap: 8,
+  },
+  payBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
   },
 });

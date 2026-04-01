@@ -81,7 +81,8 @@ export default function WalletScreen() {
         prefill: {
           email: `${appUser.phone}@callapp.com`,
           contact: appUser.phone,
-          name: appUser.name
+          name: appUser.name,
+          ...(appUser?.paymentMethod ? { method: appUser.paymentMethod } : {})
         },
         theme: { color: '#FF4D67' }
       };
@@ -112,7 +113,8 @@ export default function WalletScreen() {
                   "prefill": {
                     "name": "${appUser.name}",
                     "email": "${appUser.phone}@callapp.com",
-                    "contact": "${appUser.phone}"
+                    "contact": "${appUser.phone}",
+                    ${appUser?.paymentMethod ? `"method": "${appUser.paymentMethod}",` : ''}
                   },
                   "theme": { "color": "#FF4D67" },
                   "handler": function (response) {

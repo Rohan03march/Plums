@@ -27,6 +27,7 @@ export interface User {
   isAudioOnline?: boolean;
   isVideoOnline?: boolean;
   isProfileComplete?: boolean;
+  paymentMethod?: 'upi' | 'card';
   // Stats for women
   allTimeEarnings?: number;
   videoEarnings?: number;

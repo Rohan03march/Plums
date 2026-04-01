@@ -65,7 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Route protection
   useEffect(() => {
     if (!loading) {
-      if (!user && pathname !== '/login' && pathname !== '/privacy-policy') {
+      if (!user && pathname !== '/login' && pathname !== '/privacy-policy' && pathname !== '/user-deletion') {
         router.push('/login');
       } else if (user && isAdmin && pathname === '/login') {
         router.push('/');

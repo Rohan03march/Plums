@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, Image, Dimensions, Platform } from 'react-native';
 
@@ -18,7 +18,7 @@ import { VideoCallView } from '../../components/call/VideoCallView';
 const { width } = Dimensions.get('window');
 
 // Components shared by both views
-const HeartPop = ({ x, y, onComplete }: { x: number, y: number, onComplete: () => void }) => {
+const HeartPop = React.memo(({ x, y, onComplete }: { x: number, y: number, onComplete: () => void }) => {
   const anim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.timing(anim, { toValue: 1, duration: 1500, easing: Easing.out(Easing.ease), useNativeDriver: true }).start(onComplete);
@@ -38,9 +38,9 @@ const HeartPop = ({ x, y, onComplete }: { x: number, y: number, onComplete: () =
       <Ionicons name="heart" size={24} color="#FF4D67" />
     </Animated.View>
   );
-};
+});
 
-const CoinJump = ({ onComplete }: { onComplete: () => void }) => {
+const CoinJump = React.memo(({ onComplete }: { onComplete: () => void }) => {
   const anim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.timing(anim, { toValue: 1, duration: 800, easing: Easing.out(Easing.quad), useNativeDriver: true }).start(onComplete);
@@ -56,6 +56,22 @@ const CoinJump = ({ onComplete }: { onComplete: () => void }) => {
     <Animated.View style={{ position: 'absolute', left: 0, top: 0, transform: [{ translateX }, { translateY }, { scale }, { rotate }], opacity, zIndex: 5000 }}>
        <FontAwesome5 name="coins" size={28} color="#FFD700" style={{ shadowColor: '#FFD700', shadowRadius: 10, shadowOpacity: 0.8 }} />
     </Animated.View>
+  );
+});
+
+// A dedicated component to handle particles without re-rendering the whole CallRoom
+const ParticleBackground = ({ heartPops, coinJumps, onHeartComplete, onCoinComplete }: any) => {
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      {heartPops.map((h: any) => (
+        <HeartPop key={h.id} x={h.x} y={h.y} onComplete={() => onHeartComplete(h.id)} />
+      ))}
+      <View style={{ position: 'absolute', bottom: 100, alignSelf: 'center' }}>
+        {coinJumps.map((j: any) => (
+          <CoinJump key={j.id} onComplete={() => onCoinComplete(j.id)} />
+        ))}
+      </View>
+    </View>
   );
 };
 
@@ -225,8 +241,7 @@ export default function CallRoom() {
   const commonProps = {
     session, participant, role, remoteUid, seconds, isMuted, toggleMute, endCall, minimizeCall, handleBlock,
     formatTime, colors, isDark, pulseAnim, isBestie, handleToggleBestie, toggleGiftMenu: () => setShowGiftMenu(!showGiftMenu),
-    coinJumps, heartPops, handleJumpComplete: (id: number) => setCoinJumps(prev => prev.filter(j => j.id !== id)),
-    setHeartPops, giftNotification, CoinJump, HeartPop
+    giftNotification
   };
 
   // Render only a skeletal loader if the session is not yet loaded
@@ -258,6 +273,13 @@ export default function CallRoom() {
           toggleSpeaker={toggleSpeaker}
         />
       )}
+
+      <ParticleBackground 
+        heartPops={heartPops}
+        coinJumps={coinJumps}
+        onHeartComplete={(id: number) => setHeartPops(prev => prev.filter(h => h.id !== id))}
+        onCoinComplete={(id: number) => setCoinJumps(prev => prev.filter(j => j.id !== id))}
+      />
 
       {/* Shared Modals */}
       <Modal transparent visible={showGiftMenu} animationType="slide">

@@ -25,16 +25,10 @@ interface AudioCallViewProps {
   isBestie: boolean;
   handleToggleBestie: () => void;
   toggleGiftMenu: () => void;
-  coinJumps: { id: number }[];
-  heartPops: { id: number; x: number; y: number }[];
-  handleJumpComplete: (id: number) => void;
-  setHeartPops: React.Dispatch<React.SetStateAction<{ id: number; x: number; y: number }[]>>;
   giftNotification: string | null;
-  CoinJump: React.ComponentType<any>;
-  HeartPop: React.ComponentType<any>;
 }
 
-export const AudioCallView: React.FC<AudioCallViewProps> = ({
+export const AudioCallView: React.FC<AudioCallViewProps> = React.memo(({
   session,
   participant,
   role,
@@ -54,13 +48,7 @@ export const AudioCallView: React.FC<AudioCallViewProps> = ({
   isBestie,
   handleToggleBestie,
   toggleGiftMenu,
-  coinJumps,
-  heartPops,
-  handleJumpComplete,
-  setHeartPops,
   giftNotification,
-  CoinJump,
-  HeartPop
 }) => {
   const safeColors = colors || { text: '#fff', bg: '#000', subText: '#ccc', primary: '#FF4D67' };
 
@@ -126,23 +114,8 @@ export const AudioCallView: React.FC<AudioCallViewProps> = ({
               }
             ]} />
 
-            {/* Centered Gifting Animations Overlay */}
-            <View style={[StyleSheet.absoluteFill, { justifyContent: 'center', alignItems: 'center', zIndex: 5000 }]} pointerEvents="none">
-              {coinJumps.map(jump => (
-                <CoinJump key={jump.id} onComplete={() => handleJumpComplete(jump.id)} />
-              ))}
-            </View>
-
             {role === 'caller' && remoteUid && (
               <View style={[StyleSheet.absoluteFill, { justifyContent: 'center', alignItems: 'center', zIndex: 100 }]}>
-                {heartPops.map(heart => (
-                  <HeartPop
-                    key={heart.id}
-                    x={heart.x}
-                    y={heart.y}
-                    onComplete={() => setHeartPops(prev => prev.filter(h => h.id !== heart.id))}
-                  />
-                ))}
                 <TouchableOpacity
                   style={[styles.heartBadge, isBestie && styles.activeHeartBadge]}
                   onPress={handleToggleBestie}
@@ -240,7 +213,7 @@ export const AudioCallView: React.FC<AudioCallViewProps> = ({
       </BlurView>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: { flex: 1 },

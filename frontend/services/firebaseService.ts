@@ -1,5 +1,5 @@
 import { firebaseDb } from '../config/firebase';
-import { getFirestore, collection, addDoc, query, where, onSnapshot, doc, getDoc, setDoc, updateDoc, orderBy, QuerySnapshot, Timestamp, limit, DocumentSnapshot, arrayUnion, arrayRemove, startAfter, getDocs, query as firestoreQuery, documentId, increment } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, query, where, onSnapshot, doc, getDoc, setDoc, updateDoc, orderBy, QuerySnapshot, Timestamp, limit, DocumentSnapshot, arrayUnion, arrayRemove, startAfter, getDocs, query as firestoreQuery, documentId, increment, runTransaction } from 'firebase/firestore';
 
 export const formatFirebaseDate = (timestamp: any): string => {
   if (!timestamp) return 'Just now';
@@ -577,24 +577,31 @@ export const executeCallTransfer = async (
     const callerRef = doc(firebaseDb, 'Users', callerId);
     const receiverRef = doc(firebaseDb, 'Users', receiverId);
     
-    // 1. Update Caller: Deduct coins
-    await updateDoc(callerRef, {
-      coins: increment(-amount)
+    await runTransaction(firebaseDb, async (transaction) => {
+      const callerSnap = await transaction.get(callerRef);
+      if (!callerSnap.exists()) throw "Caller does not exist";
+      
+      const currentCoins = callerSnap.data().coins || 0;
+      if (currentCoins < amount) throw "Insufficient balance";
+
+      // 1. Update Caller
+      transaction.update(callerRef, { coins: increment(-amount) });
+
+      // 2. Update Receiver
+      const receiverUpdates: any = {
+        coins: increment(amount),
+        allTimeEarnings: increment(amount),
+      };
+
+      if (type === 'audio') {
+        receiverUpdates.audioEarnings = increment(amount);
+      } else {
+        receiverUpdates.videoEarnings = increment(amount);
+      }
+
+      transaction.update(receiverRef, receiverUpdates);
     });
 
-    // 2. Update Receiver: Add coins and allTimeEarnings
-    const receiverUpdates: any = {
-      coins: increment(amount),
-      allTimeEarnings: increment(amount),
-    };
-
-    if (type === 'audio') {
-      receiverUpdates.audioEarnings = increment(amount);
-    } else {
-      receiverUpdates.videoEarnings = increment(amount);
-    }
-
-    await updateDoc(receiverRef, receiverUpdates);
     return true;
   } catch (error) {
     console.error("Error executing call transfer:", error);
@@ -620,21 +627,29 @@ export const sendGift = async (senderId: string, receiverId: string, coins: numb
     const senderRef = doc(firebaseDb, 'Users', senderId);
     const receiverRef = doc(firebaseDb, 'Users', receiverId);
     
-    // 1. Transactional Update (Basic)
-    const [senderSnap, receiverSnap] = await Promise.all([getDoc(senderRef), getDoc(receiverRef)]);
-    if (!senderSnap.exists() || !receiverSnap.exists()) return false;
-    
-    const senderData = senderSnap.data();
-    if (senderData.coins < coins) return false;
+    const timestamp = Timestamp.now();
 
-    await updateDoc(senderRef, { coins: senderData.coins - coins });
-    await updateDoc(receiverRef, { 
-      coins: increment(coins),
-      allTimeEarnings: increment(coins),
-      giftEarnings: increment(coins)
+    await runTransaction(firebaseDb, async (transaction) => {
+      const senderSnap = await transaction.get(senderRef);
+      if (!senderSnap.exists()) throw "Sender does not exist";
+      
+      const senderCoins = senderSnap.data().coins || 0;
+      if (senderCoins < coins) throw "Insufficient balance";
+
+      // 1. Update Balances
+      transaction.update(senderRef, { coins: increment(-coins) });
+      transaction.update(receiverRef, { 
+        coins: increment(coins),
+        allTimeEarnings: increment(coins),
+        giftEarnings: increment(coins)
+      });
+
+      // 2. Record Transactions (using transaction.set/add if possible, but Firestore transactions usually require knowing the ID or using non-transactional addDoc for logs)
+      // Since recordTransaction uses addDoc, we'll keep it outside for simplicity unless we want total atomicity including the log
+      // However, the balance updates are now atomic.
     });
 
-    const timestamp = Timestamp.now();
+    // Recording logs after successful transaction
     await Promise.all([
       recordTransaction({
         userId: senderId,

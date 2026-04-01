@@ -37,15 +37,10 @@ interface VideoCallViewProps {
   isBestie: boolean;
   handleToggleBestie: () => void;
   toggleGiftMenu: () => void;
-  coinJumps: { id: number }[];
-  heartPops: { id: number; x: number; y: number }[];
-  handleJumpComplete: (id: number) => void;
-  setHeartPops: React.Dispatch<React.SetStateAction<{ id: number; x: number; y: number }[]>>;
   giftNotification: string | null;
-  HeartPop: React.ComponentType<any>;
 }
 
-export const VideoCallView: React.FC<VideoCallViewProps> = ({
+export const VideoCallView: React.FC<VideoCallViewProps> = React.memo(({
   session,
   participant,
   role,
@@ -68,12 +63,7 @@ export const VideoCallView: React.FC<VideoCallViewProps> = ({
   isBestie,
   handleToggleBestie,
   toggleGiftMenu,
-  coinJumps,
-  heartPops,
-  handleJumpComplete,
-  setHeartPops,
   giftNotification,
-  HeartPop
 }) => {
   const safeColors = colors || { text: '#fff', bg: '#000', subText: '#ccc', primary: '#FF4D67' };
   const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -199,14 +189,6 @@ export const VideoCallView: React.FC<VideoCallViewProps> = ({
           {/* Caller Interaction Badges for Video */}
           {role === 'caller' && remoteUid && (
             <Reanimated.View style={[styles.videoInteractionOverlay, overlayAnimatedStyle]}>
-              {heartPops.map(heart => (
-                <HeartPop
-                  key={heart.id}
-                  x={heart.x}
-                  y={heart.y}
-                  onComplete={() => setHeartPops(prev => prev.filter(h => h.id !== heart.id))}
-                />
-              ))}
               <TouchableOpacity
                 style={[styles.heartBadge, isBestie && styles.activeHeartBadge]}
                 onPress={handleToggleBestie}
@@ -324,7 +306,7 @@ export const VideoCallView: React.FC<VideoCallViewProps> = ({
       </Reanimated.View>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },

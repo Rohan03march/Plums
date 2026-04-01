@@ -19,3 +19,5 @@ ios/
 .env.*.local
 
 .env
+
+.vscode

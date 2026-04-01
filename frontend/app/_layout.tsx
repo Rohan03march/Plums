@@ -110,7 +110,6 @@ export default function RootLayout() {
           require('../assets/images/3d_boy_3.png'),
           require('../assets/images/3d_boy_4.png'),
           require('../assets/images/friend_plums.png'),
-          require('../assets/images/plum_logo.png'),
         ];
 
         const cacheImages = imagesToCache.map(image => {

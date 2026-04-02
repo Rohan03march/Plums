@@ -1,10 +1,15 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
+import * as React from 'react';
 
 export default function WomenLayout() {
   const { colors } = useTheme();
-  return (
+  const insets = useSafeAreaInsets();
+  // Memoize the entire Navigator to prevent double-registration for linking in React Navigation 7
+  const TabNavigator = React.useMemo(() => (
     <Tabs screenOptions={{
       headerShown: true,
       headerStyle: { backgroundColor: colors.bg, elevation: 0, shadowOpacity: 0, borderBottomWidth: 0 },
@@ -16,18 +21,18 @@ export default function WomenLayout() {
         left: 0,
         right: 0,
         backgroundColor: colors.card,
-        borderTopLeftRadius: 30,
-        borderTopRightRadius: 30,
+        borderTopLeftRadius: 32,
+        borderTopRightRadius: 32,
         borderTopWidth: 1,
         borderColor: colors.border,
-        height: 80,
-        paddingBottom: 20,
-        paddingTop: 10,
-        elevation: 15,
+        height: Platform.OS === 'android' ? 64 + Math.max(insets.bottom, 16) : 70 + insets.bottom,
+        paddingBottom: Platform.OS === 'android' ? Math.max(insets.bottom, 16) - 4 : insets.bottom + 10,
+        paddingTop: 12,
+        elevation: 25,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: -5 },
-        shadowOpacity: 0.1,
-        shadowRadius: 10,
+        shadowOffset: { width: 0, height: -8 },
+        shadowOpacity: 0.15,
+        shadowRadius: 15,
       },
       tabBarActiveTintColor: colors.primary,
       tabBarInactiveTintColor: colors.subText,
@@ -38,7 +43,7 @@ export default function WomenLayout() {
           headerShown: false,
           headerTitle: 'Dashboard',
           title: 'Home',
-          tabBarIcon: ({ color }) => <Ionicons name="home" size={28} color={color} />,
+          tabBarIcon: ({ color }: { color: string }) => <Ionicons name="home" size={28} color={color} />,
         }}
       />
       <Tabs.Screen
@@ -46,7 +51,7 @@ export default function WomenLayout() {
         options={{
           headerTitle: 'Voice Pods',
           title: 'Pods',
-          tabBarIcon: ({ color }) => <Ionicons name="headset" size={28} color={color} />,
+          tabBarIcon: ({ color }: { color: string }) => <Ionicons name="headset" size={28} color={color} />,
         }}
       />
       <Tabs.Screen
@@ -54,12 +59,13 @@ export default function WomenLayout() {
         options={{
           headerTitle: 'My Profile',
           title: 'Profile',
-          tabBarIcon: ({ color }) => <Ionicons name="person-circle" size={28} color={color} />,
+          tabBarIcon: ({ color }: { color: string }) => <Ionicons name="person-circle" size={28} color={color} />,
         }}
       />
       <Tabs.Screen
         name="withdrawal"
         options={{
+          headerShown: false,
           headerTitle: 'Withdraw Earnings',
           href: null, // this hides it from the bottom tab bar
         }}
@@ -83,5 +89,7 @@ export default function WomenLayout() {
         }}
       />
     </Tabs>
-  );
+  ), [colors, insets.bottom]);
+
+  return TabNavigator;
 }

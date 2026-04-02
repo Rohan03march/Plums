@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, memo, useRef } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Dimensions, RefreshControl, Animated, Alert, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Dimensions, RefreshControl, Animated, Alert, ScrollView, Modal, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../context/ThemeContext';
+import { BlurView } from 'expo-blur';
 import { useAuth } from '../../context/AuthContext';
 import { subscribeToFemaleCreators, User as FirestoreUser, getAvatarSource, toggleFavorite, initiateCallSession, fetchMoreFemaleCreators, subscribeToCallHistory, CallRecord, updateUserBalance, recordTransaction, subscribeToBestieCreators } from '../../services/firebaseService';
 import { Timestamp } from 'firebase/firestore';
@@ -141,6 +142,80 @@ const CreatorCard = memo(({
   );
 });
 
+// --- NEW MODAL COMPONENT ---
+const BestieConfirmationModal = ({
+  visible,
+  onClose,
+  onConfirm,
+  creator,
+  isProcessing,
+  colors
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  creator: FirestoreUser | null;
+  isProcessing: boolean;
+  colors: any;
+}) => {
+  if (!creator) return null;
+
+  return (
+    <Modal visible={visible} transparent animationType="fade">
+      <View style={styles.modalOverlay}>
+        <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFillObject} />
+        <View style={styles.bestieModalContent}>
+          <LinearGradient
+            colors={['rgba(255, 77, 103, 0.15)', 'transparent']}
+            style={styles.modalGradient}
+          />
+          <View style={styles.bestieAvatarContainer}>
+            <Image
+              source={getAvatarSource(creator.avatar, 'woman')}
+              style={styles.bestieModalImage}
+            />
+            <View style={styles.bestieStarBadge}>
+              <Ionicons name="star" size={20} color="#FFD700" />
+            </View>
+          </View>
+          
+          <Text style={styles.bestieModalTitle}>Make her your Bestie? ✨</Text>
+          <Text style={styles.bestieModalMessage}>
+            Unlock special highlights and priority status with <Text style={{ fontWeight: '900', color: '#FF4D67' }}>{creator.displayName || creator.name}</Text>.
+          </Text>
+
+          <View style={styles.bestieModalCost}>
+            <Ionicons name="flash" size={16} color="#FFD700" />
+            <Text style={styles.bestieModalCostText}>Cost: 10 Gold</Text>
+          </View>
+
+          <View style={styles.bestieModalActions}>
+            <TouchableOpacity
+              style={[styles.bestieModalBtn, styles.bestieModalBtnNo]}
+              onPress={onClose}
+              disabled={isProcessing}
+            >
+              <Text style={styles.bestieModalBtnTextNo}>No</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.bestieModalBtn, styles.bestieModalBtnYes]}
+              onPress={onConfirm}
+              disabled={isProcessing}
+            >
+              {isProcessing ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.bestieModalBtnTextYes}>Yes</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
 // A simple Skeleton Card component to show while loading
 const SkeletonCard = () => {
   const animValue = useRef(new Animated.Value(0)).current;
@@ -192,6 +267,11 @@ export default function MenHome() {
   const { appUser, loading } = useAuth();
   const router = useRouter();
 
+  // --- MODAL STATE ---
+  const [showBestieModal, setShowBestieModal] = useState(false);
+  const [selectedCreator, setSelectedCreator] = useState<FirestoreUser | null>(null);
+  const [isProcessingBestie, setIsProcessingBestie] = useState(false);
+
   // Listen for female creators in real-time
   useEffect(() => {
     if (loading) return;
@@ -228,8 +308,23 @@ export default function MenHome() {
     const isCurrentlyFavorite = appUser.besties?.includes(creatorId) || false;
 
     if (!isCurrentlyFavorite) {
-      const userGold = appUser.coins || 0;
-      if (userGold < 10) {
+      const creator = creators.find(c => c.id === creatorId) || besties.find(c => c.id === creatorId);
+      if (creator) {
+        setSelectedCreator(creator);
+        setShowBestieModal(true);
+      }
+    } else {
+      await toggleFavorite(appUser.id, creatorId, false);
+    }
+  }, [appUser?.id, appUser?.besties, creators, besties]);
+
+  const handleConfirmBestie = async () => {
+    if (!appUser?.id || !selectedCreator) return;
+
+    const userGold = appUser.coins || 0;
+    if (userGold < 10) {
+      setShowBestieModal(false);
+      setTimeout(() => {
         Alert.alert(
           "Insufficient Gold",
           "Adding a Bestie costs 10 gold. Would you like to top up?",
@@ -238,40 +333,33 @@ export default function MenHome() {
             { text: "Top Up", onPress: () => router.push('/(men)/wallet') }
           ]
         );
-        return;
-      }
-
-      Alert.alert(
-        "Add Bestie",
-        "It costs 10 gold to add this creator to your Bestie list. Proceed?",
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Add (10 Gold)",
-            onPress: async () => {
-              const creator = creators.find(c => c.id === creatorId) || besties.find(c => c.id === creatorId);
-              const creatorName = creator?.displayName || creator?.name || 'User';
-
-              const newBalance = userGold - 10;
-              await updateUserBalance(appUser.id, newBalance);
-              await recordTransaction({
-                userId: appUser.id,
-                type: 'bestie_spend',
-                coins: 10,
-                amountInRupees: 1,
-                status: 'success',
-                timestamp: Timestamp.now(),
-                details: `Added ${creatorName} as Bestie`
-              });
-              await toggleFavorite(appUser.id, creatorId, true);
-            }
-          }
-        ]
-      );
-    } else {
-      await toggleFavorite(appUser.id, creatorId, false);
+      }, 500);
+      return;
     }
-  }, [appUser?.id, appUser?.besties, appUser?.coins, router]);
+
+    setIsProcessingBestie(true);
+    try {
+      const creatorName = selectedCreator.displayName || selectedCreator.name || 'User';
+      const newBalance = userGold - 10;
+      await updateUserBalance(appUser.id, newBalance);
+      await recordTransaction({
+        userId: appUser.id,
+        type: 'bestie_spend',
+        coins: 10,
+        amountInRupees: 1,
+        status: 'success',
+        timestamp: Timestamp.now(),
+        details: `Added ${creatorName} as Bestie`
+      });
+      await toggleFavorite(appUser.id, selectedCreator.id, true);
+      setShowBestieModal(false);
+    } catch (error) {
+      console.error('Bestie failed:', error);
+      Alert.alert('Error', 'Failed to add Bestie. Please try again.');
+    } finally {
+      setIsProcessingBestie(false);
+    }
+  };
 
   const handleCall = useCallback(async (creator: FirestoreUser, type: 'audio' | 'video') => {
     if (!appUser) return;
@@ -405,11 +493,131 @@ export default function MenHome() {
           }
         />
       )}
+
+      <BestieConfirmationModal
+        visible={showBestieModal}
+        onClose={() => setShowBestieModal(false)}
+        onConfirm={handleConfirmBestie}
+        creator={selectedCreator}
+        isProcessing={isProcessingBestie}
+        colors={colors}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  bestieModalContent: {
+    backgroundColor: '#1A0B2E',
+    width: '85%',
+    borderRadius: 40,
+    padding: 32,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 215, 0, 0.3)',
+    overflow: 'hidden',
+    shadowColor: '#FF4D67',
+    shadowOffset: { width: 0, height: 20 },
+    shadowOpacity: 0.3,
+    shadowRadius: 30,
+    elevation: 25,
+  },
+  modalGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 150,
+  },
+  bestieAvatarContainer: {
+    marginBottom: 20,
+    position: 'relative',
+  },
+  bestieModalImage: {
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    borderWidth: 5,
+    borderColor: '#FF4D67',
+  },
+  bestieStarBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: '#1A0B2E',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: '#FFD700',
+  },
+  bestieModalTitle: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: '#fff',
+    marginBottom: 10,
+  },
+  bestieModalMessage: {
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.8)',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 15,
+  },
+  bestieModalCost: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,215,0,0.1)',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 15,
+    gap: 8,
+    marginBottom: 25,
+  },
+  bestieModalCostText: {
+    color: '#FFD700',
+    fontWeight: '800',
+    fontSize: 14,
+  },
+  bestieModalActions: {
+    flexDirection: 'row',
+    gap: 15,
+    width: '100%',
+  },
+  bestieModalBtn: {
+    flex: 1,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bestieModalBtnNo: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  bestieModalBtnYes: {
+    backgroundColor: '#FF4D67',
+  },
+  bestieModalBtnTextNo: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  bestieModalBtnTextYes: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '800',
+  },
   container: {
     flex: 1,
     backgroundColor: '#0f0f13',
@@ -470,9 +678,9 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   listContent: {
-    padding: 20,
-    paddingBottom: 100,
-    gap: 20,
+    padding: 16,
+    paddingBottom: 140, // Increased to ensure scrolling past bottom tabs
+    gap: 16,
   },
   card: {
     width: width * 0.9,

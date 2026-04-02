@@ -11,26 +11,27 @@ const HistoryItem = memo(({ item, colors, accentColor, isCredit }: { item: Trans
   <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
     <View style={styles.cardLeft}>
       <View style={[styles.iconBox, { backgroundColor: `${accentColor}15` }]}>
-        <Ionicons 
+        <Ionicons
           name={
             item.type === 'deposit' ? 'wallet' : 
             item.type === 'withdrawal' ? 'cash' : 
             item.type === 'refund' ? 'refresh-circle' : 
             item.type === 'bestie_spend' ? 'heart' :
-            (item.type === 'gift_spend' ? 'gift' : 'call')
-          } 
-          size={20} 
-          color={accentColor} 
+            (item.type === 'gift_spend' ? 'gift' : 
+            (item.details?.includes('VIDEO') ? 'videocam' : 'call'))
+          }
+          size={20}
+          color={accentColor}
         />
       </View>
       <View>
         <Text style={[styles.title, { color: colors.text }]}>
-          {item.type === 'deposit' ? 'Recharge' : 
-           item.type === 'withdrawal' ? 'Withdrawal' : 
-           item.type === 'call_spend' ? 'Call Payment' : 
-           item.type === 'gift_spend' ? 'Gift Sent' : 
-           item.type === 'bestie_spend' ? (item.details || 'Bestie Added') :
-           item.type === 'refund' ? 'Refund' : 'Transaction'}
+          {item.type === 'deposit' ? 'Recharge' :
+            item.type === 'withdrawal' ? 'Withdrawal' :
+              item.type === 'call_spend' ? 'Call Payment' :
+                item.type === 'gift_spend' ? 'Gift Sent' :
+                  item.type === 'bestie_spend' ? (item.details || 'Bestie Added') :
+                    item.type === 'refund' ? 'Refund' : 'Transaction'}
         </Text>
         <Text style={[styles.date, { color: colors.subText }]}>
           {formatFirebaseDate(item.timestamp)}
@@ -44,11 +45,6 @@ const HistoryItem = memo(({ item, colors, accentColor, isCredit }: { item: Trans
         </Text>
         <FontAwesome5 name="coins" size={10} color="#FFD700" />
       </View>
-      {item.type === 'call_spend' && item.details?.includes('duration:') && (
-        <Text style={styles.talktimeText}>
-          {item.details.split('duration:')[1].trim()} talktime
-        </Text>
-      )}
     </View>
   </View>
 ));
@@ -118,13 +114,13 @@ export default function TransactionHistory() {
   const renderItem = useCallback(({ item }: { item: Transaction }) => {
     const isCredit = item.type === 'deposit' || item.type === 'refund';
     const accentColor = isCredit ? '#4CAF50' : '#FF4D67';
-    
+
     return (
-      <HistoryItem 
-        item={item} 
-        colors={colors} 
-        accentColor={accentColor} 
-        isCredit={isCredit} 
+      <HistoryItem
+        item={item}
+        colors={colors}
+        accentColor={accentColor}
+        isCredit={isCredit}
       />
     );
   }, [colors]);
@@ -154,25 +150,25 @@ export default function TransactionHistory() {
         ListHeaderComponent={
           <>
             <View style={styles.header}>
-              <TouchableOpacity 
-                style={[styles.backButton, { backgroundColor: colors.card }]} 
+              <TouchableOpacity
+                style={[styles.backButton, { backgroundColor: colors.card }]}
                 onPress={() => router.push('/(men)/profile')}
               >
                 <Ionicons name="arrow-back" size={24} color={colors.text} />
               </TouchableOpacity>
               <Text style={[styles.headerTitle, { color: colors.text }]}>Transaction History</Text>
               <Text style={[styles.headerSub, { color: colors.subText }]}>Track your spendings and earnings</Text>
-          </View>
+            </View>
 
             <View style={styles.tabContainer}>
-              <TouchableOpacity 
-                style={[styles.tab, activeTab === 'gold' && styles.activeTab]} 
+              <TouchableOpacity
+                style={[styles.tab, activeTab === 'gold' && styles.activeTab]}
                 onPress={() => setActiveTab('gold')}
               >
                 <Text style={[styles.tabText, { color: activeTab === 'gold' ? '#fff' : colors.subText }]}>Gold Spent</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.tab, activeTab === 'recharge' && styles.activeTab]} 
+              <TouchableOpacity
+                style={[styles.tab, activeTab === 'recharge' && styles.activeTab]}
                 onPress={() => setActiveTab('recharge')}
               >
                 <Text style={[styles.tabText, { color: activeTab === 'recharge' ? '#fff' : colors.subText }]}>Recharge</Text>

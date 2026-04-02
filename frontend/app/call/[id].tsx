@@ -1,13 +1,14 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, Image, Dimensions, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, Dimensions, Platform } from 'react-native';
+import { Image } from 'expo-image';
 
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { useCall } from '../../context/CallContext';
-import { blockUser, sendGift, toggleFavorite, updateCallSessionMeta, getAvatarSource } from '../../services/firebaseService';
+import { blockUser, sendGift, toggleFavorite, updateCallSessionMeta, getAvatarSource, updateCallSession } from '../../services/firebaseService';
 import { Modal, Animated, Easing } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -100,6 +101,9 @@ export default function CallRoom() {
     submitRating: submitRatingFromContext,
     skipRating,
     isEngineReady,
+    lastSignal,
+    sendCallSignal,
+    isSubmittingRating
   } = useCall();
 
   const [isLocalVideoMain, setIsLocalVideoMain] = useState(false);
@@ -113,7 +117,7 @@ export default function CallRoom() {
   
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const heartCounter = useRef(0);
-  const lastProcessedGiftTime = useRef(0);
+  const lastProcessedSignalTime = useRef(0);
   const hasInitialized = useRef(false);
 
   useEffect(() => {
@@ -140,6 +144,12 @@ export default function CallRoom() {
   useEffect(() => {
     if (!hasInitialized.current && id) {
       hasInitialized.current = true;
+      
+      // Failsafe for instant-navigation: ensure session is marked 'accepted'
+      if (role === 'receiver' && session?.status === 'ringing') {
+        updateCallSession(id as string, 'accepted');
+      }
+
       startCall(id as string, role as 'caller' | 'receiver', type as 'audio' | 'video')
         .then(() => setLoading(false));
     } else if (session) {
@@ -156,19 +166,24 @@ export default function CallRoom() {
     }
   }, [appUser?.besties, session, role]);
 
+  // Handle incoming Agora signals (signaling optimization)
   useEffect(() => {
-    if (session?.meta?.lastGift) {
-      const gift = session.meta.lastGift;
-      if (gift.timestamp > lastProcessedGiftTime.current) {
-        lastProcessedGiftTime.current = gift.timestamp;
+    if (lastSignal && lastSignal.timestamp > lastProcessedSignalTime.current) {
+      lastProcessedSignalTime.current = lastSignal.timestamp;
+      
+      if (lastSignal.type === 'gift') {
         if (role === 'receiver') {
-          setGiftNotification(`Received ${gift.amount} Gold! ✨`);
+          setGiftNotification(`Received ${lastSignal.data.amount} Gold! ✨`);
           setTimeout(() => setGiftNotification(null), 5000);
           setCoinJumps(prev => [...prev, { id: ++heartCounter.current }]);
         }
+      } else if (lastSignal.type === 'heart') {
+        const id = ++heartCounter.current;
+        setHeartPops(prev => [...prev, { id, x: Math.random() * 200 - 100, y: Math.random() * -200 - 50 }]);
+        setTimeout(() => setHeartPops(prev => prev.filter(h => h.id !== id)), 1500);
       }
     }
-  }, [appUser?.besties, session?.meta?.lastGift, role]);
+  }, [lastSignal, role]);
 
   const handleBlock = async () => {
     if (!session || !appUser) return;
@@ -224,12 +239,21 @@ export default function CallRoom() {
     }
     setCoinJumps(prev => [...prev, { id: ++heartCounter.current }]);
     setShowGiftMenu(false);
-    const success = await sendGift(appUser.id, session.receiverId, amount);
-    if (success) {
-      const now = Date.now();
-      lastProcessedGiftTime.current = now;
-      await updateCallSessionMeta(id as string, { lastGift: { amount, timestamp: now } });
-    }
+    
+    // 1. Send Signaling Notification (Optimized - Instant and Zero DB cost)
+    sendCallSignal('gift', { amount });
+
+    // 2. Persist Database Transaction (Security - Non-optional)
+    await sendGift(appUser.id, session.receiverId, amount);
+  };
+
+  const handleSendHeart = () => {
+    // Highly optimized signaling - Peer to Peer via Agora
+    const id = ++heartCounter.current;
+    setHeartPops(prev => [...prev, { id, x: Math.random() * 200 - 100, y: Math.random() * -200 - 50 }]);
+    setTimeout(() => setHeartPops(prev => prev.filter(h => h.id !== id)), 1500);
+    
+    sendCallSignal('heart', {});
   };
 
   const formatTime = (secs: number) => {
@@ -241,10 +265,55 @@ export default function CallRoom() {
   const commonProps = {
     session, participant, role, remoteUid, seconds, isMuted, toggleMute, endCall, minimizeCall, handleBlock,
     formatTime, colors, isDark, pulseAnim, isBestie, handleToggleBestie, toggleGiftMenu: () => setShowGiftMenu(!showGiftMenu),
-    giftNotification
+    giftNotification, handleSendHeart
   };
 
-  // Render only a skeletal loader if the session is not yet loaded
+  // Premium Ringing View for Callers
+  const RingingView = () => {
+    const { creatorName: paramName, creatorAvatar: paramAvatar } = useLocalSearchParams();
+    const displayAvatar = (paramAvatar as string) || participant?.avatar;
+    const displayName = (paramName as string) || participant?.name || 'Creator';
+
+    return (
+      <View style={[styles.container, { backgroundColor: colors.bg, justifyContent: 'center', alignItems: 'center' }]}>
+        <LinearGradient colors={isDark ? ['#1A0B2E', '#0F041A'] : ['#FFF5F7', '#FFFFFF']} style={StyleSheet.absoluteFillObject} />
+        
+        <View style={styles.ringingContent}>
+          <Animated.View style={[
+            styles.avatarPulseWrapper,
+            { transform: [{ scale: pulseAnim }] }
+          ]}>
+            <Image
+              source={getAvatarSource(displayAvatar ?? undefined, 'woman')}
+              style={styles.ringingAvatar}
+              contentFit="cover"
+            />
+          </Animated.View>
+          
+          <Text style={[styles.ringingName, { color: colors.text }]}>{displayName}</Text>
+          <Text style={[styles.ringingStatus, { color: colors.primary }]}>Ringing...</Text>
+          
+          <View style={styles.ringingActions}>
+            <TouchableOpacity 
+              style={[styles.endCallBtn, { backgroundColor: '#FF3B30' }]} 
+              onPress={endCall}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="close" size={32} color="#fff" />
+            </TouchableOpacity>
+            <Text style={[styles.endCallLabel, { color: colors.subText }]}>Cancel</Text>
+          </View>
+        </View>
+      </View>
+    );
+  };
+
+  // Render a premium Ringing view for callers, or a simple loader for receivers
+  if ((loading || !session || !remoteUid) && role === 'caller') {
+    return <RingingView />;
+  }
+
+  // Simple skeletal loader for receiver (they only see this for a split second after clicking Answer)
   if (loading || !session) {
     return (
       <View style={[styles.container, { backgroundColor: colors.bg, justifyContent: 'center', alignItems: 'center' }]}>
@@ -312,6 +381,60 @@ export default function CallRoom() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  ringingContent: {
+    alignItems: 'center',
+    gap: 30,
+    zIndex: 10,
+  },
+  avatarPulseWrapper: {
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: 'rgba(255, 77, 103, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 77, 103, 0.2)',
+  },
+  ringingAvatar: {
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    borderWidth: 4,
+    borderColor: '#fff',
+  },
+  ringingName: {
+    fontSize: 28,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  ringingStatus: {
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+  },
+  ringingActions: {
+    marginTop: 40,
+    alignItems: 'center',
+    gap: 12,
+  },
+  endCallBtn: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#FF3B30',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  endCallLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
   placeholderAvatarLarge: { width: 140, height: 140, borderRadius: 70, borderWidth: 3, borderColor: '#FF4D67', marginBottom: 20 },
   userName: { fontSize: 26, fontWeight: '900', color: '#fff', letterSpacing: 0.5, marginBottom: 8 },
   loadingText: { fontSize: 14, fontWeight: '600' },

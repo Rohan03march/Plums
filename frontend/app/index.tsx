@@ -24,25 +24,18 @@ export default function SplashScreen() {
   const { user, appUser, loading } = useAuth();
 
   // Animation Shared Values
-  const logoScale = useSharedValue(0.8);
+  const logoScale = useSharedValue(1);
   const logoOpacity = useSharedValue(0);
-  const logoTranslateY = useSharedValue(20);
+  const logoTranslateY = useSharedValue(0);
   const contentOpacity = useSharedValue(0);
   const orb1Opacity = useSharedValue(0);
   const orb2Opacity = useSharedValue(0);
 
   useEffect(() => {
     // Initial Entry Animations
-    logoScale.value = withSpring(1, { damping: 12 });
+    logoScale.value = withTiming(1, { duration: 1000 });
     logoOpacity.value = withTiming(1, { duration: 1000 });
-    logoTranslateY.value = withRepeat(
-      withSequence(
-        withTiming(-15, { duration: 2500, easing: Easing.inOut(Easing.sin) }),
-        withTiming(0, { duration: 2500, easing: Easing.inOut(Easing.sin) })
-      ),
-      -1,
-      true
-    );
+    logoTranslateY.value = 0; 
 
     contentOpacity.value = withDelay(400, withTiming(1, { duration: 1000 }));
     
@@ -131,7 +124,6 @@ export default function SplashScreen() {
             style={styles.logo}
             contentFit="contain"
           />
-          <View style={styles.logoShadow} />
         </Animated.View>
 
         <Animated.View style={[styles.brandContainer, brandStyle]}>
@@ -194,15 +186,6 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     zIndex: 2,
-  },
-  logoShadow: {
-    position: 'absolute',
-    bottom: 20,
-    width: '60%',
-    height: 30,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    borderRadius: 50,
-    transform: [{ scaleX: 1.5 }],
   },
   brandContainer: {
     alignItems: 'center',

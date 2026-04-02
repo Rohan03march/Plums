@@ -2,7 +2,7 @@ import 'react-native-get-random-values';
 import { Stack } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useEffect, useState, useRef } from 'react';
+import * as React from 'react';
 import { View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as SplashScreen from 'expo-splash-screen';
@@ -22,15 +22,16 @@ SplashScreen.preventAutoHideAsync();
 function AppView({ onLayoutRootView }: { onLayoutRootView: () => Promise<void> }) {
   const { isDark, colors } = useTheme();
   const { appUser, user } = useAuth();
-  const { startCall } = useCall();
-  const [incomingCall, setIncomingCall] = useState<CallSession | null>(null);
-  const handledCallIds = useRef<Set<string>>(new Set());
+  const { startCall, activeCall } = useCall();
+  const [incomingCall, setIncomingCall] = React.useState<CallSession | null>(null);
+  const handledCallIds = React.useRef<Set<string>>(new Set());
   const router = useRouter();
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (user && appUser?.role === 'woman') {
       const unsubscribe = subscribeToIncomingCalls(user.uid, (call) => {
-        if (call && handledCallIds.current.has(call.id)) {
+        // Suppress incoming call if already in a call or already handled
+        if (activeCall || (call && handledCallIds.current.has(call.id))) {
           setIncomingCall(null);
           return;
         }
@@ -38,9 +39,9 @@ function AppView({ onLayoutRootView }: { onLayoutRootView: () => Promise<void> }
       });
       return () => unsubscribe();
     }
-  }, [user, appUser]);
+  }, [user, appUser, activeCall]);
 
-  const handleAccept = async () => {
+  const handleAccept = () => {
     if (incomingCall) {
       const sessionId = incomingCall.id;
       const type = incomingCall.type;
@@ -49,9 +50,12 @@ function AppView({ onLayoutRootView }: { onLayoutRootView: () => Promise<void> }
       handledCallIds.current.add(sessionId);
       setIncomingCall(null);
 
-      await updateCallSession(sessionId, 'accepted');
-      await startCall(sessionId, 'receiver', type);
+      // 1. Navigate instantly to the Call Room
       router.push({ pathname: '/call/[id]', params: { id: sessionId, role: 'receiver', type } });
+
+      // 2. Perform connection/updates in "fire-and-forget" style (background)
+      updateCallSession(sessionId, 'accepted');
+      startCall(sessionId, 'receiver', type);
     }
   };
 
@@ -64,18 +68,23 @@ function AppView({ onLayoutRootView }: { onLayoutRootView: () => Promise<void> }
     }
   };
 
+  const RootStack = React.useMemo(() => (
+    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
+      <Stack.Screen name="index" options={{ title: 'Onboarding' }} />
+      <Stack.Screen name="login" options={{ headerShown: false }} />
+      <Stack.Screen name="role" options={{ headerShown: false }} />
+      <Stack.Screen name="setup-women" options={{ title: 'Profile Setup' }} />
+      <Stack.Screen name="(men)" options={{ title: 'Men App' }} />
+      <Stack.Screen name="(women)" options={{ title: 'Women App' }} />
+      <Stack.Screen name="call/[id]" options={{ title: 'Call Room' }} />
+    </Stack>
+  ), [colors.bg]);
+
   return (
     <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
       <StatusBar style={isDark ? "light" : "dark"} />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
-        <Stack.Screen name="index" options={{ title: 'Onboarding' }} />
-        <Stack.Screen name="login" options={{ headerShown: false }} />
-        <Stack.Screen name="role" options={{ headerShown: false }} />
-        <Stack.Screen name="setup-women" options={{ title: 'Profile Setup' }} />
-        <Stack.Screen name="(men)" options={{ title: 'Men App' }} />
-        <Stack.Screen name="(women)" options={{ title: 'Women App' }} />
-        <Stack.Screen name="call/[id]" options={{ title: 'Call Room' }} />
-      </Stack>
+      
+      {RootStack}
 
       <IncomingCallModal
         visible={!!incomingCall}
@@ -92,9 +101,9 @@ function AppView({ onLayoutRootView }: { onLayoutRootView: () => Promise<void> }
 }
 
 export default function RootLayout() {
-  const [appIsReady, setAppIsReady] = useState(false);
+  const [appIsReady, setAppIsReady] = React.useState(false);
 
-  useEffect(() => {
+  React.useEffect(() => {
     async function prepare() {
       try {
         const imagesToCache = [
@@ -126,7 +135,7 @@ export default function RootLayout() {
     prepare();
   }, []);
 
-  const onLayoutRootView = useCallback(async () => {
+  const onLayoutRootView = React.useCallback(async () => {
     if (appIsReady) {
       await SplashScreen.hideAsync();
     }

@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, Dimensions, TouchableOpacity, Image, FlatList } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -18,22 +18,22 @@ const { width, height } = Dimensions.get('window');
 const SLIDES = [
   {
     id: '1',
-    title: 'Video Discovery',
-    description: 'Meet interesting people from around the world through high-quality video calls.',
+    title: 'Protect Privacy',
+    description: 'Your safety is our priority. We use industry-leading encryption to keep your personal data and calls private.',
     image: require('../assets/images/onboarding_1.jpg'),
     tag: 'Step 01',
   },
   {
     id: '2',
-    title: 'Global Connections',
-    description: 'Experience instant discovery and live conversations with diverse communities.',
+    title: 'Set Boundaries',
+    description: 'You define the rules. Use our advanced blocking and filtering tools to create the safe environment you want.',
     image: require('../assets/images/onboarding_2.jpg'),
     tag: 'Step 02',
   },
   {
     id: '3',
-    title: 'Safe & Secure',
-    description: 'Your privacy is our top priority. Enjoy secure, end-to-end encrypted interactions.',
+    title: 'Respect Users',
+    description: 'A community of kindness. We foster an environment of mutual respect, making Plums a safe space for everyone.',
     image: require('../assets/images/onboarding_3.jpg'),
     tag: 'Step 03',
   },
@@ -143,6 +143,21 @@ export default function Onboarding() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const slidesRef = useRef<FlatList>(null);
 
+  // Auto-swipe logic
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (slidesRef.current) {
+        const nextIndex = (currentIndex + 1) % SLIDES.length;
+        slidesRef.current.scrollToIndex({
+          index: nextIndex,
+          animated: true,
+        });
+      }
+    }, 3500); // Transitions every 3.5 seconds
+
+    return () => clearInterval(timer);
+  }, [currentIndex]);
+
   const handleGetStarted = async () => {
     try {
       await AsyncStorage.setItem('hasSeenOnboarding', 'true');
@@ -180,6 +195,11 @@ export default function Onboarding() {
         onViewableItemsChanged={viewableItemsChanged}
         viewabilityConfig={viewConfig}
         ref={slidesRef}
+        getItemLayout={(data, index) => ({
+          length: width,
+          offset: width * index,
+          index,
+        })}
       />
 
       <View style={styles.footer}>

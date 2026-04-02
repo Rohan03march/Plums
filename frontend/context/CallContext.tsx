@@ -45,6 +45,8 @@ interface CallContextType {
   skipRating: () => void;
   isSubmittingRating: boolean;
   lastCallData: { id: string; receiverId: string; type: string; receiverName?: string; receiverAvatar?: string | null } | null;
+  lastSignal: { type: string; data: any; timestamp: number } | null;
+  sendCallSignal: (type: string, data: any) => void;
 }
 
 const CallContext = createContext<CallContextType | undefined>(undefined);
@@ -86,11 +88,12 @@ export const CallProvider = ({ children }: { children?: React.ReactNode }) => {
   const [isSubmittingRating, setIsSubmittingRating] = useState(false);
   const [callRole, setCallRole] = useState<'caller' | 'receiver' | null>(null);
   const [isEngineReady, setIsEngineReady] = useState(false);
+  const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [lastCallData, setLastCallData] = useState<{ id: string; receiverId: string; type: string; receiverName?: string; receiverAvatar?: string | null } | null>(null);
-
-
+  const [lastSignal, setLastSignal] = useState<{ type: string; data: any; timestamp: number } | null>(null);
 
   const engine = useRef<IRtcEngine | null>(null);
+  const dataStreamId = useRef<number>(-1);
   const billingCountRef = React.useRef(0);
   const lastBilledSecondRef = React.useRef(-1);
   const hasCallStartedRef = useRef(false);
@@ -107,18 +110,21 @@ export const CallProvider = ({ children }: { children?: React.ReactNode }) => {
     setSeconds(0);
     setRemoteUid(null);
     setIsEngineReady(false);
+    setIsTimerRunning(false);
     pendingSessionId.current = null;
 
     if (sessionUnsubscribe.current) {
       sessionUnsubscribe.current();
       sessionUnsubscribe.current = null;
     }
+    dataStreamId.current = -1;
+    setLastSignal(null);
   }, []);
 
-  // Timer logic
+  // Timer logic - start only when both connected and signaled
   useEffect(() => {
     let interval: any;
-    if (activeCall?.status === 'accepted') {
+    if (isTimerRunning) {
       hasCallStartedRef.current = true;
       interval = setInterval(() => {
         setSeconds(prev => prev + 1);
@@ -129,7 +135,44 @@ export const CallProvider = ({ children }: { children?: React.ReactNode }) => {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [activeCall?.status]);
+  }, [isTimerRunning]);
+
+  // Caller (Master) starts the timer when connected - using "Pulse Start" for reliability
+  useEffect(() => {
+    let pulseInterval: any;
+    if (callRole === 'caller' && activeCall?.status === 'accepted' && remoteUid !== null && !isTimerRunning) {
+      console.log('[Agora Context] Unified Start: Pulsing TIMER_START signal...');
+      setIsTimerRunning(true);
+      
+      let count = 0;
+      pulseInterval = setInterval(() => {
+        sendCallSignal('TIMER_START', { timestamp: Date.now() });
+        count++;
+        if (count >= 5) {
+          clearInterval(pulseInterval);
+        }
+      }, 1000);
+    }
+    return () => {
+      if (pulseInterval) clearInterval(pulseInterval);
+    };
+  }, [callRole, activeCall?.status, remoteUid, isTimerRunning]);
+
+  // Receiver (Slave) Fail-safe: start timer after 5s of connection if master signal missed
+  useEffect(() => {
+    let failSafeTimeout: any;
+    if (callRole === 'receiver' && remoteUid !== null && !isTimerRunning) {
+      failSafeTimeout = setTimeout(() => {
+        if (!isTimerRunning) {
+          console.warn('[Agora Context] Master signal missed; starting timer via fail-safe.');
+          setIsTimerRunning(true);
+        }
+      }, 5000);
+    }
+    return () => {
+      if (failSafeTimeout) clearTimeout(failSafeTimeout);
+    };
+  }, [callRole, remoteUid, isTimerRunning]);
 
 
   const handleCallTermination = React.useCallback(async (session: CallSession | null, role: 'caller' | 'receiver') => {
@@ -169,6 +212,11 @@ export const CallProvider = ({ children }: { children?: React.ReactNode }) => {
 
       if (role === 'caller' && hasStarted) {
         const amount = type === 'audio' ? 10 : 60;
+        // Use either the actual billed minutes, or at least 1 minute if the call connected
+        const finalTalkMinutes = Math.max(1, billingMins);
+        
+        console.log(`[Agora Context] Finalizing stats for ${role}: Talk Time: ${finalTalkMinutes}m, Total Calls: +1`);
+        
         await recordCallRecord({
           callerId: activeCall.callerId,
           callerName: activeCall.callerName,
@@ -177,8 +225,8 @@ export const CallProvider = ({ children }: { children?: React.ReactNode }) => {
           receiverName: activeCall.receiverName,
           receiverAvatar: activeCall.receiverAvatar,
           duration: (Math.floor(durationSecs / 60)).toString().padStart(2, '0') + ":" + (durationSecs % 60).toString().padStart(2, '0'),
-          durationInMinutes: billingMins,
-          cost: billingMins * amount,
+          durationInMinutes: finalTalkMinutes,
+          cost: billingMins * amount, // User only pays for billed minutes
           type: type as 'audio' | 'video',
           timestamp: null
         });
@@ -194,7 +242,7 @@ export const CallProvider = ({ children }: { children?: React.ReactNode }) => {
   
   // Billing Logic (Recurring with grace periods)
   useEffect(() => {
-    if (callRole === 'caller' && activeCall?.status === 'accepted') {
+    if (callRole === 'caller' && activeCall?.status === 'accepted' && remoteUid !== null) {
       const amount = activeCall.type === 'audio' ? 10 : 60;
       
       let shouldBill = false;
@@ -235,7 +283,7 @@ export const CallProvider = ({ children }: { children?: React.ReactNode }) => {
         performDeduction();
       }
     }
-  }, [seconds, activeCall, callRole, appUser?.coins, endCall]);
+  }, [seconds, activeCall, callRole, appUser?.coins, endCall, remoteUid]);
 
 
   const startCall = React.useCallback(async (sessionId: string, role: 'caller' | 'receiver', type: 'audio' | 'video') => {
@@ -286,6 +334,27 @@ export const CallProvider = ({ children }: { children?: React.ReactNode }) => {
         engine.current.registerEventHandler({
           onJoinChannelSuccess: (connection: RtcConnection, elapsed: number) => {
             console.log('[Agora Context] Local user joined channel:', connection.channelId, 'uid:', connection.localUid);
+            // Create data stream for high-frequency signaling (Hearts, Gift Pings)
+            if (engine.current) {
+              const streamId = engine.current.createDataStream({ syncWithAudio: false, ordered: false });
+              console.log('[Agora Context] Created data stream with ID:', streamId);
+              dataStreamId.current = streamId;
+            }
+          },
+          onStreamMessage: (connection: RtcConnection, remoteUid: number, streamId: number, data: Uint8Array, len: number) => {
+            try {
+              const payload = String.fromCharCode.apply(null, Array.from(data));
+              const signal = JSON.parse(payload);
+              console.log('[Agora Context] Received signal:', signal.type, 'from:', remoteUid);
+              
+              if (signal.type === 'TIMER_START') {
+                setIsTimerRunning(true);
+              }
+              
+              setLastSignal(signal);
+            } catch (err) {
+              console.error('[Agora Context] Failed to parse stream message:', err);
+            }
           },
           onUserJoined: (connection: RtcConnection, uid: number, elapsed: number) => {
             console.log('[Agora Context] Remote user joined channel:', uid);
@@ -428,6 +497,24 @@ export const CallProvider = ({ children }: { children?: React.ReactNode }) => {
     router.replace('/(men)');
   }, [router]);
 
+  const sendCallSignal = React.useCallback((type: string, data: any) => {
+    if (engine.current && dataStreamId.current !== -1) {
+      try {
+        const payload = JSON.stringify({ type, data, timestamp: Date.now() });
+        const bytes = new Uint8Array(payload.length);
+        for (let i = 0; i < payload.length; i++) {
+          bytes[i] = payload.charCodeAt(i);
+        }
+        engine.current.sendStreamMessage(dataStreamId.current, bytes);
+        console.log('[Agora Context] Sent signal:', type);
+      } catch (err) {
+        console.error('[Agora Context] Failed to send signal:', err);
+      }
+    } else {
+      console.warn('[Agora Context] Cannot send signal: engine or dataStream not ready');
+    }
+  }, []);
+
 
   const formatHistoryDuration = (secs: number) => {
     const mins = Math.floor(secs / 60);
@@ -440,7 +527,8 @@ export const CallProvider = ({ children }: { children?: React.ReactNode }) => {
       activeCall, isMinimized, seconds, remoteUid, isMuted, isSpeaker, isCameraOn,
       showRatingModal, userRating, engine: engine.current,
       startCall, endCall, minimizeCall, restoreCall, toggleMute, toggleSpeaker, toggleCamera,
-      setUserRating, submitRating, skipRating, isEngineReady, lastCallData, isSubmittingRating
+      setUserRating, submitRating, skipRating, isEngineReady, lastCallData, isSubmittingRating,
+      lastSignal, sendCallSignal
     }}>
       {children}
     </CallContext.Provider>

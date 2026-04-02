@@ -37,6 +37,7 @@
         "backgroundColor": "#6C3EF4"
       },
       "edgeToEdgeEnabled": true,
+      "launchMode": "singleTask",
       "predictiveBackGestureEnabled": false
     },
     "web": {

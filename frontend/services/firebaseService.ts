@@ -158,6 +158,18 @@ export const getUserData = async (userId: string): Promise<User | null> => {
   }
 };
 
+export const migrateUserRupeeBalance = async (userId: string, coins: number) => {
+  try {
+    const userRef = doc(firebaseDb, 'Users', userId);
+    await updateDoc(userRef, {
+      rupeeBalance: coins / 10
+    });
+    console.log(`[Migration] Initialized rupeeBalance for ${userId}: ₹${coins / 10}`);
+  } catch (error) {
+    console.error(`[Migration] Failed for ${userId}:`, error);
+  }
+};
+
 export const subscribeToUser = (userId: string, callback: (data: User | null) => void) => {
   const userDoc = doc(firebaseDb, 'Users', userId);
   return onSnapshot(userDoc, (snapshot: DocumentSnapshot) => {
@@ -283,6 +295,26 @@ export const updateUserProfile = async (uid: string, data: Partial<User>) => {
     console.error('Error updating user profile:', error);
     throw error;
   }
+};
+
+export const subscribeToPendingPayout = (userId: string, callback: (isPending: boolean) => void) => {
+  if (!userId) {
+    callback(false);
+    return () => {};
+  }
+  const q = query(
+    collection(firebaseDb, 'PayoutRequests'),
+    where('userId', '==', userId),
+    where('status', '==', 'pending'),
+    limit(1)
+  );
+
+  return onSnapshot(q, (snapshot) => {
+    callback(!snapshot.empty);
+  }, (error) => {
+    console.error("Error subscribing to pending payouts:", error);
+    callback(false);
+  });
 };
 
 export const subscribeToTransactions = (userId: string, callback: (txs: Transaction[]) => void, limitCount: number = 20) => {
@@ -590,16 +622,26 @@ export const executeCallTransfer = async (
       transaction.update(callerRef, { coins: increment(-amount) });
 
       // 2. Update Receiver
-      const inrEarned = type === 'audio' ? (amount * 0.14) : (amount * 0.10);
+      const normalizedType = (type || '').trim().toLowerCase();
+      const inrEarned = normalizedType === 'audio' ? (amount * 0.14) : (amount * 0.10);
+      
       const receiverUpdates: any = {
         coins: increment(amount),
         allTimeEarnings: increment(amount),
         rupeeBalance: increment(inrEarned)
       };
 
-      if (type === 'audio') {
+      if (normalizedType === 'audio') {
         receiverUpdates.audioEarnings = increment(amount);
+        receiverUpdates.audioMinutes = increment(Math.round(amount / 10)); // Assuming 10 coins per min
+      } else if (normalizedType === 'video') {
+        receiverUpdates.videoEarnings = increment(amount);
+        receiverUpdates.videoMinutes = increment(Math.round(amount / 60)); // Assuming 60 coins per min
+      } else if (normalizedType === 'gift' || normalizedType === 'gift_earn') {
+        receiverUpdates.giftEarnings = increment(amount);
       } else {
+        // Fallback for safety - if we don't know the type, treat as video (safer for system balance)
+        // actually if unknown, we should probably still pick one to avoid losing money.
         receiverUpdates.videoEarnings = increment(amount);
       }
 

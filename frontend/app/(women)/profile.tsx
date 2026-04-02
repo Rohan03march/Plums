@@ -1,21 +1,16 @@
-import { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Dimensions, Alert, RefreshControl } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useState, useCallback, useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Dimensions, Alert, RefreshControl, Platform, StatusBar } from 'react-native';
+import { Ionicons, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { FlatList } from 'react-native';
-import Animated, { FadeInRight } from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeInRight, Layout } from 'react-native-reanimated';
 import { useTheme } from '../../context/ThemeContext';
 import { getAvatarSource } from '../../services/firebaseService';
 import { useAuth } from '../../context/AuthContext';
 
 const { width } = Dimensions.get('window');
 
-const SAFETY_TIPS = [
-  { id: '1', title: 'Privacy First', desc: 'Your safety is our priority. Never share personal addresses or sensitive info.', icon: 'shield-checkmark' as const },
-  { id: '2', title: 'Your Control', desc: 'You have total control. End or block anytime you feel uncomfortable.', icon: 'hand-left' as const },
-  { id: '3', title: 'Instant Safety', desc: 'Zero tolerance for abuse. Use the report button for any unwelcome behavior.', icon: 'warning' as const },
-];
+const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
 export default function Profile() {
   const router = useRouter();
@@ -25,20 +20,17 @@ export default function Profile() {
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    // Data is synced via listener, so we just add a delay for feedback
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 1500);
+    setTimeout(() => setRefreshing(false), 1500);
   }, []);
 
   const handleLogout = () => {
     Alert.alert(
       "Logout",
-      "Are you sure you want to logout?",
+      "Ready to take a break from Plums?",
       [
-        { text: "Cancel", style: "cancel" },
-        { 
-          text: "Logout", 
+        { text: "Not yet", style: "cancel" },
+        {
+          text: "Yes, Logout",
           style: "destructive",
           onPress: async () => {
             try {
@@ -53,272 +45,380 @@ export default function Profile() {
     );
   };
 
-  const ActionItem = ({ icon, title, color = '#fff', onPress, rightText = null, isToggle = false, toggleValue = false, onToggle = null }: any) => (
-    <TouchableOpacity style={[styles.actionItem, { backgroundColor: colors.card }]} onPress={onPress}>
+  const ActionItem = ({ icon, title, color = '#6366f1', onPress, rightElement = null, isLast = false, subtitle = null }: any) => (
+    <TouchableOpacity
+      style={[styles.actionItem, !isLast && { borderBottomWidth: 1, borderBottomColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}
+      onPress={onPress}
+      activeOpacity={0.6}
+    >
       <View style={[styles.iconBox, { backgroundColor: `${color}15` }]}>
-        <Ionicons name={icon} size={22} color={color} />
+        <Ionicons name={icon} size={20} color={color} />
       </View>
-      <Text style={[styles.actionTitle, { color: color === '#FF4D67' ? color : colors.text }]}>{title}</Text>
-      {rightText && <Text style={styles.rightText}>{rightText}</Text>}
-      <Ionicons name="chevron-forward" size={20} color="#666" />
+      <View style={styles.actionContent}>
+        <Text style={[styles.actionTitle, { color: color === '#FF4D67' ? color : colors.text }]}>{title}</Text>
+        {subtitle && <Text style={styles.actionSubtitle}>{subtitle}</Text>}
+      </View>
+      {rightElement ? rightElement : <Ionicons name="chevron-forward" size={18} color={isDark ? '#444' : '#ccc'} />}
     </TouchableOpacity>
   );
 
+  const stats = useMemo(() => [
+    { label: 'Rating', value: appUser?.rating?.toFixed(1) || '0.0', icon: 'star', color: '#FFD700' },
+    { label: 'Total Calls', value: appUser?.totalCalls || '0', icon: 'call', color: '#4CAF50' },
+    { label: 'Talk Time', value: `${appUser?.talkTime || '0'}m`, icon: 'time', color: '#2196F3' },
+  ], [appUser]);
+
   return (
-    <ScrollView 
-      style={[styles.container, { backgroundColor: colors.bg }]} 
-      showsVerticalScrollIndicator={false}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          tintColor={colors.primary}
-          colors={[colors.primary]}
-        />
-      }
-    >
-      {/* Header Profile Area */}
-      <View style={styles.profileHeader}>
-        <View style={styles.avatarContainer}>
-          <Image 
-            source={getAvatarSource(appUser?.avatar, 'woman')} 
-            style={[styles.avatar, { borderColor: colors.primary }]} 
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+        }
+      >
+        {/* Profile Header Card */}
+        <Animated.View
+          entering={FadeInDown.duration(800).springify()}
+          style={[styles.headerCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+        >
+          <LinearGradient
+            colors={isDark ? ['rgba(255, 77, 103, 0.1)', 'transparent'] : ['rgba(255, 77, 103, 0.05)', 'transparent']}
+            style={styles.headerGradient}
           />
-        </View>
-        <Text style={[styles.name, { color: colors.text }]}>{appUser?.displayName || 'Creator'} ✨</Text>
-        <Text style={[styles.username, { color: colors.subText }]}>@{appUser?.username || 'user'}</Text>
-      </View>
 
-      {/* Withdraw Banner */}
-      <TouchableOpacity onPress={() => router.push('/(women)/withdrawal')} activeOpacity={0.9}>
-        <LinearGradient colors={isDark ? ['#FF4D67', '#FF8A9B'] : ['#EC4899', '#F472B6']} style={styles.premiumBanner} start={{x:0,y:0}} end={{x:1,y:1}}>
-          <View style={styles.premiumBannerLeft}>
-            <View style={styles.premiumIconBox}>
-              <Ionicons name="wallet" size={24} color="#FF4D67" />
-            </View>
-            <View>
-              <Text style={styles.premiumTitle}>Wallet & Payouts</Text>
-              <Text style={styles.premiumSub}>Balance: ₹{(appUser?.coins || 0) / 10}</Text>
-            </View>
-          </View>
-          <View style={styles.premiumBtn}>
-            <Text style={styles.premiumBtnText}>Manage</Text>
-            <Ionicons name="chevron-forward" size={16} color="#FF4D67" />
-          </View>
-        </LinearGradient>
-      </TouchableOpacity>
-
-      {/* Safety Carousel */}
-      <View style={styles.carouselContainer}>
-        <FlatList
-          data={SAFETY_TIPS}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          snapToInterval={width * 0.8 + 15}
-          decelerationRate="fast"
-          contentContainerStyle={{ paddingHorizontal: 20 }}
-          renderItem={({ item, index }) => (
-            <Animated.View 
-              entering={FadeInRight.delay(index * 200).duration(600).springify()}
-              style={[styles.carouselCard, { backgroundColor: colors.card, borderColor: colors.border }]}
-            >
-              <Ionicons name={item.icon} size={28} color={colors.primary} />
-              <View style={styles.carouselText}>
-                <Text style={[styles.carouselTitle, { color: colors.text }]}>{item.title}</Text>
-                <Text style={[styles.carouselDesc, { color: colors.subText }]}>{item.desc}</Text>
+          <View style={styles.headerTop}>
+            <View style={styles.avatarWrapper}>
+              <View style={[styles.avatarGlow, { shadowColor: colors.primary }]} />
+              <Image
+                source={getAvatarSource(appUser?.avatar, 'woman')}
+                style={[styles.avatar, { borderColor: colors.card }]}
+              />
+              <View style={styles.verifiedBadge}>
+                <MaterialCommunityIcons name="check-decagram" size={20} color="#fff" />
               </View>
-            </Animated.View>
-          )}
-        />
-      </View>
+            </View>
 
-      {/* Actions List */}
-      <View style={styles.actionSection}>
-        <Text style={[styles.sectionTitle, { color: colors.subText }]}>Preferences</Text>
-        <ActionItem 
-          icon={isDark ? "moon" : "sunny"} 
-          title="Dark Mode" 
-          color="#8B5CF6" 
-          onPress={() => toggleTheme()} 
-        />
-        
-        <Text style={[styles.sectionTitle, { color: colors.subText, marginTop: 20 }]}>History & Growth</Text>
-        <ActionItem icon="call" title="Call Logs" color="#3B82F6" onPress={() => router.push('/(women)/call-history')} />
-        <ActionItem icon="receipt" title="Payout History" color="#10B981" onPress={() => router.push('/(women)/tx-history')} />
-        <ActionItem icon="trending-up" title="Insights & Stats" color="#8B5CF6" onPress={() => {}} />
+            <View style={styles.headerInfo}>
+              <Text style={[styles.name, { color: colors.text }]}>{appUser?.displayName || 'Creator'}</Text>
+              <Text style={[styles.username, { color: colors.subText }]}>@{appUser?.username || 'user'}</Text>
+            </View>
+          </View>
 
-        <Text style={[styles.sectionTitle, { color: colors.subText, marginTop: 20 }]}>About & Support</Text>
-        <ActionItem icon="book" title="Creator Guide" color="#0EA5E9" onPress={() => router.push('/guide')} />
-        <ActionItem icon="help-buoy" title="Help & Support" color="#EC4899" onPress={() => router.push('/support')} />
-        <ActionItem icon="shield-checkmark" title="Privacy Policy" color="#10B981" onPress={() => router.push('/privacy')} />
-        
-        <Text style={[styles.sectionTitle, { color: colors.subText, marginTop: 20 }]}></Text>
-        <ActionItem icon="log-out" title="Logout" color="#FF4D67" onPress={handleLogout} />
-      </View>
-      <View style={{height: 100}} />
-    </ScrollView>
+          <View style={styles.headerDivider} />
+
+          <View style={styles.statsRow}>
+            {stats.map((stat, i) => (
+              <View key={stat.label} style={styles.statItem}>
+                <Text style={[styles.statValue, { color: colors.text }]}>{stat.value}</Text>
+                <View style={styles.statLabelRow}>
+                  <Ionicons name={stat.icon as any} size={12} color={stat.color} />
+                  <Text style={styles.statLabel}>{stat.label}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        </Animated.View>
+
+        {/* Action Group: Growth & Finance */}
+        <Animated.View
+          entering={FadeInDown.delay(200).duration(800).springify()}
+          style={styles.section}
+        >
+          <Text style={[styles.sectionHeading, { color: colors.subText }]}>REVENUE & GROWTH</Text>
+          <View style={[styles.actionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <ActionItem
+              icon="wallet"
+              title="Wallet & Payouts"
+              subtitle={(() => {
+                const totalEarned = (appUser?.audioEarnings || 0) + (appUser?.videoEarnings || 0) + (appUser?.giftEarnings || 0);
+                const factor = totalEarned > 0 ? Math.min(1, (appUser?.coins || 0) / totalEarned) : 0;
+                const rupeeVal = (
+                  ((appUser?.audioEarnings || 0) * factor * 0.14) + 
+                  ((appUser?.videoEarnings || 0) * factor * 0.10) + 
+                  ((appUser?.giftEarnings || 0) * factor * 0.10)
+                );
+                return `Current Balance: ₹${rupeeVal.toFixed(2)}`;
+              })()}
+              color="#FF4D67"
+              onPress={() => router.push('/(women)/withdrawal')}
+            />
+            <ActionItem
+              icon="receipt"
+              title="Transaction History"
+              color="#10B981"
+              onPress={() => router.push('/(women)/tx-history')}
+            />
+            <ActionItem
+              icon="trending-up"
+              title="Insights & Level"
+              color="#8B5CF6"
+              onPress={() => { }}
+              isLast={true}
+            />
+          </View>
+        </Animated.View>
+
+        {/* Action Group: Preferences */}
+        <Animated.View
+          entering={FadeInDown.delay(400).duration(800).springify()}
+          style={styles.section}
+        >
+          <Text style={[styles.sectionHeading, { color: colors.subText }]}>PREFERENCES</Text>
+          <View style={[styles.actionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <ActionItem
+              icon={isDark ? "moon" : "sunny"}
+              title="Appearance"
+              subtitle={isDark ? "Dark Modern Theme" : "Light Elegant Theme"}
+              color="#F59E0B"
+              onPress={() => toggleTheme()}
+              rightElement={
+                <View style={[styles.themePill, { backgroundColor: isDark ? '#333' : '#f0f0f0' }]}>
+                  <Text style={[styles.themePillText, { color: colors.text }]}>{isDark ? 'Dark' : 'Light'}</Text>
+                </View>
+              }
+            />
+            <ActionItem
+              icon="notifications"
+              title="Notifications"
+              color="#3B82F6"
+              onPress={() => { }}
+              isLast={true}
+            />
+          </View>
+        </Animated.View>
+
+        {/* Action Group: Support */}
+        <Animated.View
+          entering={FadeInDown.delay(600).duration(800).springify()}
+          style={styles.section}
+        >
+          <Text style={[styles.sectionHeading, { color: colors.subText }]}>APP SUPPORT</Text>
+          <View style={[styles.actionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <ActionItem icon="help-buoy" title="Help & Support" color="#EC4899" onPress={() => router.push('/support')} />
+            <ActionItem icon="shield-checkmark" title="Privacy Policy" color="#10B981" onPress={() => router.push('/privacy')} />
+            <ActionItem icon="document-text" title="Terms of Service" color="#6366f1" onPress={() => { }} isLast={true} />
+          </View>
+        </Animated.View>
+
+        {/* Logout Section */}
+        <AnimatedTouchableOpacity
+          entering={FadeInDown.delay(800).duration(800).springify()}
+          activeOpacity={0.7}
+          onPress={handleLogout}
+          style={[styles.logoutBtn, { borderColor: isDark ? 'rgba(255, 77, 103, 0.2)' : 'rgba(255, 77, 103, 0.1)' }]}
+        >
+          <Ionicons name="log-out-outline" size={20} color="#FF4D67" />
+          <Text style={styles.logoutText}>Sign Out of Plums</Text>
+        </AnimatedTouchableOpacity>
+
+        <Text style={styles.versionText}>Plums Creator v1.0.4 • Made with ✨</Text>
+
+        <View style={{ height: 40 }} />
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f0f13',
   },
-  profileHeader: {
+  scrollContent: {
+    padding: 20,
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+    paddingBottom: 100,
+  },
+  headerCard: {
+    borderRadius: 32,
+    padding: 24,
+    borderWidth: 1,
+    overflow: 'hidden',
+    marginBottom: 30,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 5,
+  },
+  headerGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 150,
+  },
+  headerTop: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 30,
+    gap: 20,
+    marginBottom: 24,
   },
-  avatarContainer: {
+  avatarWrapper: {
     position: 'relative',
-    marginBottom: 16,
+  },
+  avatarGlow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 45,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 15,
   },
   avatar: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    borderWidth: 3,
-    borderColor: '#FF4D67',
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    borderWidth: 4,
   },
-  editAvatarBtn: {
+  verifiedBadge: {
     position: 'absolute',
-    bottom: 0,
-    right: 0,
-    backgroundColor: '#FF4D67',
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    bottom: 2,
+    right: 2,
+    backgroundColor: '#3B82F6',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 3,
-    borderColor: '#0f0f13',
+    borderColor: '#fff',
+  },
+  headerInfo: {
+    flex: 1,
   },
   name: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#fff',
-    marginBottom: 4,
+    fontSize: 24,
+    fontWeight: '900',
+    marginBottom: 2,
+    letterSpacing: -0.5,
   },
   username: {
-    fontSize: 16,
-    color: '#a0a0a0',
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 10,
   },
-  premiumBanner: {
-    marginHorizontal: 20,
-    borderRadius: 24,
-    padding: 20,
+  levelBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255, 77, 103, 0.1)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  levelText: {
+    color: '#FF4D67',
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  headerDivider: {
+    height: 1,
+    backgroundColor: 'rgba(160,160,160,0.1)',
+    marginBottom: 20,
+  },
+  statsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
-    shadowColor: '#FF4D67',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 10,
   },
-  premiumBannerLeft: {
-    flexDirection: 'row',
+  statItem: {
     alignItems: 'center',
-    gap: 15,
+    flex: 1,
   },
-  premiumIconBox: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  premiumTitle: {
-    color: '#fff',
+  statValue: {
     fontSize: 18,
     fontWeight: '800',
     marginBottom: 2,
   },
-  premiumSub: {
-    color: 'rgba(255,255,255,0.9)',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  premiumBtn: {
-    backgroundColor: '#fff',
+  statLabelRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
     gap: 4,
   },
-  premiumBtnText: {
-    color: '#FF4D67',
-    fontWeight: '800',
-    fontSize: 14,
-  },
-  carouselContainer: {
-    marginBottom: 30,
-  },
-  carouselCard: {
-    width: width * 0.8,
-    backgroundColor: '#1E1E24',
-    borderRadius: 16,
-    padding: 20,
-    marginRight: 15,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    borderWidth: 1,
-    borderColor: '#333',
-  },
-  carouselText: {
-    flex: 1,
-  },
-  carouselTitle: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  carouselDesc: {
+  statLabel: {
+    fontSize: 11,
     color: '#a0a0a0',
+    fontWeight: '600',
+  },
+  section: {
+    marginBottom: 24,
+  },
+  sectionHeading: {
     fontSize: 12,
-    lineHeight: 18,
+    fontWeight: '800',
+    marginBottom: 10,
+    marginLeft: 8,
+    letterSpacing: 1,
   },
-  actionSection: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#666',
-    marginBottom: 12,
-    marginLeft: 4,
+  actionCard: {
+    borderRadius: 24,
+    borderWidth: 1,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
   },
   actionItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1E1E24',
     padding: 16,
-    borderRadius: 16,
-    marginBottom: 10,
   },
   iconBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
   },
-  actionTitle: {
+  actionContent: {
     flex: 1,
+  },
+  actionTitle: {
     fontSize: 16,
-    fontWeight: '600',
-  },
-  rightText: {
-    color: '#F59E0B',
     fontWeight: '700',
-    marginRight: 10,
   },
+  actionSubtitle: {
+    fontSize: 12,
+    color: '#a0a0a0',
+    marginTop: 2,
+    fontWeight: '500',
+  },
+  themePill: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  themePillText: {
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  logoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 18,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    gap: 10,
+    marginTop: 10,
+    marginBottom: 20,
+  },
+  logoutText: {
+    color: '#FF4D67',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  versionText: {
+    textAlign: 'center',
+    color: '#666',
+    fontSize: 12,
+    fontWeight: '600',
+  }
 });

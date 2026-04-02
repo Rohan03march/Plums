@@ -1,32 +1,82 @@
-import { useState, useEffect, useCallback, memo, useRef } from 'react';
-import { View, Text, StyleSheet, FlatList, RefreshControl, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, FlatList, RefreshControl, TouchableOpacity, Dimensions } from 'react-native';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, Stack } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
+import Animated, { FadeInDown, FadeInRight, Layout, useAnimatedStyle, useSharedValue, withSpring, withTiming, withRepeat, ZoomIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
+import { useState, useEffect, useCallback, memo, useRef, useMemo } from 'react';
 import { subscribeToTransactions, Transaction, fetchMoreTransactions, formatFirebaseDate } from '../../services/firebaseService';
 
-const TransactionItem = memo(({ item, colors, isCredit, statusColor, typeLabel }: { item: Transaction, colors: any, isCredit: boolean, statusColor: string, typeLabel: string }) => (
-  <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+const { width, height } = Dimensions.get('window');
+
+const FloatingOrb = ({ color, size, delay = 0 }: { color: string, size: number, delay?: number }) => {
+  const tx = useSharedValue(0);
+  const ty = useSharedValue(0);
+
+  useMemo(() => {
+    tx.value = withRepeat(withTiming(Math.random() * 50 - 25, { duration: 4000 + delay }), -1, true);
+    ty.value = withRepeat(withTiming(Math.random() * 50 - 25, { duration: 5000 + delay }), -1, true);
+  }, []);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: tx.value }, { translateY: ty.value }],
+  }));
+
+  return (
+    <Animated.View
+      style={[
+        styles.blob,
+        { width: size, height: size, borderRadius: size / 2, backgroundColor: color },
+        animatedStyle
+      ]}
+    />
+  );
+};
+
+const TransactionItem = memo(({ item, colors, isCredit, statusColor, typeLabel, index }: { item: Transaction, colors: any, isCredit: boolean, statusColor: string, typeLabel: string, index: number }) => (
+  <Animated.View 
+    entering={FadeInDown.delay(index * 100).duration(600).springify()}
+    layout={Layout.springify()}
+    style={[
+      styles.card, 
+      { 
+        backgroundColor: 'rgba(255,255,255,0.03)', 
+        borderColor: 'rgba(255,255,255,0.06)'
+      }
+    ]}
+  >
     <View style={styles.cardLeft}>
-      <View style={[styles.iconBox, { backgroundColor: isCredit ? 'rgba(76, 175, 80, 0.1)' : 'rgba(255, 77, 103, 0.1)' }]}>
+      <LinearGradient 
+        colors={isCredit ? ['rgba(76, 175, 80, 0.15)', 'rgba(76, 175, 80, 0.05)'] : ['rgba(255, 77, 103, 0.15)', 'rgba(255, 77, 103, 0.05)']}
+        style={styles.iconBox}
+      >
         <Ionicons 
-          name={item.type === 'withdrawal' ? 'cash' : (item.type === 'refund' ? 'refresh' : (item.type === 'deposit' ? 'wallet' : 'call'))} 
+          name={
+            item.type === 'withdrawal' ? 'cash' : 
+            (item.type === 'refund' ? 'refresh' : 
+            (item.type === 'deposit' ? 'wallet' : 
+            (item.details?.includes('VIDEO') ? 'videocam' : 'call')))
+          } 
           size={22} 
           color={isCredit ? '#4CAF50' : '#FF4D67'} 
         />
-      </View>
-      <View>
+      </LinearGradient>
+      <View style={{ flex: 1 }}>
         <View style={styles.titleRow}>
-          <Text style={[styles.title, { color: colors.text }]}>{typeLabel}</Text>
+          <Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>{typeLabel}</Text>
           <View style={[styles.statusBadge, { backgroundColor: `${statusColor}15`, borderColor: `${statusColor}30` }]}>
             <Text style={[styles.statusText, { color: statusColor }]}>{item.status}</Text>
           </View>
         </View>
-        <Text style={[styles.date, { color: colors.subText }]}>
-          {formatFirebaseDate(item.timestamp)}
-        </Text>
+        
+        <View style={styles.detailsRow}>
+          <Text style={[styles.date, { color: colors.subText }]}>
+            {formatFirebaseDate(item.timestamp)}
+          </Text>
+        </View>
       </View>
     </View>
     <View style={styles.cardRight}>
@@ -36,9 +86,9 @@ const TransactionItem = memo(({ item, colors, isCredit, statusColor, typeLabel }
         </Text>
         <FontAwesome5 name="coins" size={10} color="#FFD700" />
       </View>
-      <Text style={styles.amount}>₹{item.amountInRupees}</Text>
+      <Text style={styles.amount}>₹{Number(item.amountInRupees).toFixed(2)}</Text>
     </View>
-  </View>
+  </Animated.View>
 ));
 
 export default function WithdrawalHistory() {
@@ -53,6 +103,17 @@ export default function WithdrawalHistory() {
   const [hasMore, setHasMore] = useState(true);
   const lastDocRef = useRef<any>(null);
   const [activeTab, setActiveTab] = useState<'earning' | 'withdrawn'>('earning');
+
+  const togglePos = useSharedValue(0);
+
+  const handleTabChange = useCallback((newTab: 'earning' | 'withdrawn') => {
+    setActiveTab(newTab);
+    togglePos.value = withSpring(newTab === 'earning' ? 0 : 1, { damping: 15 });
+  }, []);
+
+  const toggleIndicatorStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: togglePos.value * ((width - 48) / 2) }],
+  }));
 
   const fetchInitialData = useCallback(async () => {
     if (!user) return;
@@ -101,30 +162,43 @@ export default function WithdrawalHistory() {
 
   const filteredTransactions = transactions.filter(tx => {
     if (activeTab === 'earning') {
-      return tx.type === 'call_earn' || tx.type === 'gift_earn' || tx.type === 'deposit'; // deposit if they recharge? Usually women just earn.
+      return tx.type === 'call_earn' || tx.type === 'gift_earn' || tx.type === 'deposit';
     } else {
       return tx.type === 'withdrawal' || tx.type === 'refund';
     }
   });
 
-  const renderItem = useCallback(({ item }: { item: Transaction }) => {
+  const renderItem = useCallback(({ item, index }: { item: Transaction, index: number }) => {
     const isCredit = item.type === 'call_earn' || item.type === 'gift_earn' || item.type === 'deposit' || item.type === 'refund';
     const statusColor = item.status === 'success' ? '#4CAF50' : item.status === 'pending' ? '#FFD700' : '#FF4D67';
     const typeLabel = item.type === 'withdrawal' ? 'Withdrawal' : (item.type === 'refund' ? 'Refund' : (item.type === 'deposit' ? 'Deposit' : (item.type === 'gift_earn' ? 'Gift Received' : 'Call Earning')));
-    
+
     return (
-      <TransactionItem 
-        item={item} 
-        colors={colors} 
-        isCredit={isCredit} 
-        statusColor={statusColor} 
-        typeLabel={typeLabel} 
+      <TransactionItem
+        item={item}
+        colors={colors}
+        isCredit={isCredit}
+        statusColor={statusColor}
+        typeLabel={typeLabel}
+        index={index}
       />
     );
   }, [colors]);
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.bg, paddingTop: insets.top }]}>
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
+      <Stack.Screen options={{ headerShown: false }} />
+      
+      <View style={styles.bgDecorations} pointerEvents="none">
+        <FloatingOrb color="rgba(255, 77, 103, 0.15)" size={200} delay={0} />
+        <View style={{ position: 'absolute', top: 200, left: -80 }}>
+          <FloatingOrb color="rgba(156, 39, 176, 0.1)" size={250} delay={1000} />
+        </View>
+        <View style={{ position: 'absolute', bottom: -100, right: -50 }}>
+          <FloatingOrb color="rgba(77, 124, 255, 0.05)" size={300} delay={2000} />
+        </View>
+      </View>
+
       <FlatList
         data={filteredTransactions}
         keyExtractor={(item, index) => item.id || index.toString()}
@@ -141,37 +215,53 @@ export default function WithdrawalHistory() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={colors.primary}
-            colors={[colors.primary]}
+            tintColor="#FF4D67"
+            colors={['#FF4D67']}
           />
         }
         ListHeaderComponent={
-          <View style={styles.header}>
+          <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
             <TouchableOpacity 
               style={[styles.backButton, { backgroundColor: colors.card }]} 
               onPress={() => router.push('/(women)/profile')}
             >
               <Ionicons name="arrow-back" size={24} color={colors.text} />
             </TouchableOpacity>
-            <Text style={[styles.headerTitle, { color: colors.text }]}>Wallet History</Text>
-            <Text style={[styles.headerSub, { color: colors.subText }]}>Track your earnings and withdrawals</Text>
-            
-            <View style={styles.tabContainer}>
-              <TouchableOpacity 
-                style={[styles.tab, activeTab === 'earning' && styles.activeTab]} 
-                onPress={() => setActiveTab('earning')}
+
+            <Animated.View entering={FadeInDown.delay(100).duration(800).springify()}>
+              <Text style={[styles.screenTitle, { color: colors.text }]}>
+                Wallet History
+              </Text>
+            </Animated.View>
+
+            <Animated.View entering={FadeInDown.delay(200).duration(800).springify()}>
+              <Text style={[styles.headerSub, { color: colors.subText }]}>
+                Track your earnings and withdrawals
+              </Text>
+            </Animated.View>
+
+            <View style={[styles.methodToggle, { backgroundColor: 'rgba(255,255,255,0.05)' }]}>
+              <Animated.View style={[styles.toggleIndicator, toggleIndicatorStyle]} />
+              <TouchableOpacity
+                style={styles.toggleBtn}
+                onPress={() => handleTabChange('earning')}
               >
-                <Text style={[styles.tabText, { color: activeTab === 'earning' ? '#fff' : colors.subText }]}>Earning</Text>
+                <Text style={[styles.toggleText, { color: activeTab === 'earning' ? '#fff' : colors.subText }]}>
+                  Earnings
+                </Text>
               </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.tab, activeTab === 'withdrawn' && styles.activeTab]} 
-                onPress={() => setActiveTab('withdrawn')}
+              <TouchableOpacity
+                style={styles.toggleBtn}
+                onPress={() => handleTabChange('withdrawn')}
               >
-                <Text style={[styles.tabText, { color: activeTab === 'withdrawn' ? '#fff' : colors.subText }]}>Withdrawn</Text>
+                <Text style={[styles.toggleText, { color: activeTab === 'withdrawn' ? '#fff' : colors.subText }]}>
+                  Withdrawals
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
         }
+
         ListEmptyComponent={
           !loading ? (
             <View style={styles.emptyContainer}>
@@ -193,68 +283,88 @@ const styles = StyleSheet.create({
     padding: 20,
     gap: 15,
   },
+  bgDecorations: {
+    ...StyleSheet.absoluteFillObject,
+    overflow: 'hidden',
+    zIndex: -1,
+  },
+  blob: {
+    position: 'absolute',
+    opacity: 0.6,
+  },
   header: {
+    paddingHorizontal: 20,
     marginBottom: 20,
     gap: 12,
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
   },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: '800',
-    marginBottom: 5,
+  screenTitle: {
+    fontSize: 34,
+    fontWeight: '900',
+    letterSpacing: -1.5,
   },
   headerSub: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
+    opacity: 0.6,
     marginBottom: 10,
   },
-  tabContainer: {
+  methodToggle: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 14,
     padding: 4,
-    marginTop: 10,
+    borderRadius: 24,
+    marginTop: 15,
+    position: 'relative',
+    overflow: 'hidden',
   },
-  tab: {
+  toggleBtn: {
     flex: 1,
-    paddingVertical: 10,
+    height: 52,
     alignItems: 'center',
-    borderRadius: 10,
+    justifyContent: 'center',
+    borderRadius: 20,
+    zIndex: 1,
   },
-  activeTab: {
+  toggleIndicator: {
+    position: 'absolute',
+    top: 4,
+    bottom: 4,
+    left: 4,
+    width: (width - 48) / 2, 
     backgroundColor: '#FF4D67',
+    borderRadius: 20,
+    shadowColor: '#FF4D67',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 6,
   },
-  tabText: {
+  toggleText: {
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   card: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
-    borderRadius: 22,
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
   },
   cardLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 15,
+    flex: 1,
   },
   iconBox: {
     width: 52,
@@ -284,10 +394,14 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     textTransform: 'uppercase',
   },
+  detailsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   date: {
     fontSize: 12,
-    fontWeight: '500',
-    opacity: 0.6,
+    fontWeight: '600',
+    opacity: 0.7,
   },
   cardRight: {
     alignItems: 'flex-end',

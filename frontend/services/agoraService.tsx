@@ -74,6 +74,8 @@ export interface IRtcEngine {
   release(): void;
   muteLocalAudioStream(mute: boolean): number;
   setEnableSpeakerphone(enabled: boolean): number;
+  createDataStream(config: any): number;
+  sendStreamMessage(streamId: number, data: Uint8Array): number;
 }
 
 let AgoraRTC: any = null;
@@ -171,6 +173,14 @@ export const createAgoraRtcEngine = (): IRtcEngine => {
     },
     setEnableSpeakerphone: (enabled) => {
       console.log('[Agora Mock] Set speakerphone:', enabled);
+      return 0;
+    },
+    createDataStream: (config: any) => {
+      console.log('[Agora Mock] Create Data Stream', config);
+      return 1; // Return mock stream ID
+    },
+    sendStreamMessage: (streamId: number, data: Uint8Array) => {
+      console.log('[Agora Mock] Send Stream Message to ID:', streamId, 'data length:', data.length);
       return 0;
     }
   };

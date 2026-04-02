@@ -24,6 +24,7 @@ interface AudioCallViewProps {
   pulseAnim: Animated.Value;
   isBestie: boolean;
   handleToggleBestie: () => void;
+  handleSendHeart: () => void;
   toggleGiftMenu: () => void;
   giftNotification: string | null;
 }
@@ -47,6 +48,7 @@ export const AudioCallView: React.FC<AudioCallViewProps> = React.memo(({
   pulseAnim,
   isBestie,
   handleToggleBestie,
+  handleSendHeart,
   toggleGiftMenu,
   giftNotification,
 }) => {
@@ -114,39 +116,44 @@ export const AudioCallView: React.FC<AudioCallViewProps> = React.memo(({
               }
             ]} />
 
-            {role === 'caller' && remoteUid && (
+            {remoteUid && (
               <View style={[StyleSheet.absoluteFill, { justifyContent: 'center', alignItems: 'center', zIndex: 100 }]}>
-                <TouchableOpacity
-                  style={[styles.heartBadge, isBestie && styles.activeHeartBadge]}
-                  onPress={handleToggleBestie}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name={isBestie ? "heart" : "heart-outline"} size={24} color="#fff" />
-                  {!isBestie && <View style={styles.priceTag}><Text style={styles.priceTagText}>10</Text></View>}
-                </TouchableOpacity>
-
-                {/* Gift Badge (Left) */}
-                <View style={styles.giftBadgeContainer}>
+                {role === 'caller' && (
                   <TouchableOpacity
-                    style={styles.giftBadge}
-                    onPress={toggleGiftMenu}
-                    activeOpacity={0.85}
+                    style={[styles.heartBadge, isBestie && styles.activeHeartBadge]}
+                    onPress={handleSendHeart}
+                    activeOpacity={0.8}
                   >
-                    <LinearGradient
-                      colors={['#FFD700', '#FFA500']}
-                      style={styles.giftBadgeGradient}
-                    >
-                      <FontAwesome5 name="gift" size={20} color="#4A2F00" />
-                    </LinearGradient>
+                    <Ionicons name="heart" size={24} color="#fff" />
                   </TouchableOpacity>
-                </View>
+                )}
+
+                {/* Gift Badge (Left) - Caller Only */}
+                {role === 'caller' && (
+                  <View style={styles.giftBadgeContainer}>
+                    <TouchableOpacity
+                      style={styles.giftBadge}
+                      onPress={toggleGiftMenu}
+                      activeOpacity={0.85}
+                    >
+                      <LinearGradient
+                        colors={['#FFD700', '#FFA500']}
+                        style={styles.giftBadgeGradient}
+                      >
+                        <FontAwesome5 name="gift" size={20} color="#4A2F00" />
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  </View>
+                )}
               </View>
             )}
           </View>
 
-          <Text style={[styles.userName, { color: safeColors.text }]}>
-            {participant?.name || (role === 'caller' ? session?.receiverName : session?.callerName)}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Text style={[styles.userName, { color: safeColors.text }]}>
+              {participant?.name || (role === 'caller' ? session?.receiverName : session?.callerName)}
+            </Text>
+          </View>
 
           {remoteUid && (
             <View style={styles.waveformRow}>
@@ -309,6 +316,10 @@ const styles = StyleSheet.create({
     borderColor: '#4A2F00',
   },
   priceTagText: { fontSize: 10, fontWeight: '900', color: '#4A2F00' },
+  bestieToggle: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.08)', padding: 6, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
+  bestieActive: { backgroundColor: 'rgba(255, 215, 0, 0.1)', borderColor: '#FFD700' },
+  bestiePrice: { marginLeft: 4, backgroundColor: '#FFD700', paddingHorizontal: 4, paddingVertical: 1, borderRadius: 6 },
+  bestiePriceText: { color: '#000', fontSize: 9, fontWeight: '900' },
   giftBadgeContainer: { position: 'absolute', bottom: 5, left: -40, zIndex: 100 },
   giftBadge: { width: 52, height: 52, borderRadius: 26, backgroundColor: '#fff', borderWidth: 2, borderColor: '#FFD700', overflow: 'hidden', shadowColor: '#FFD700', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 6 },
   giftBadgeGradient: { flex: 1, padding: 3, justifyContent: 'center', alignItems: 'center' },

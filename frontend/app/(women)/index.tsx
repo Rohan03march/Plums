@@ -126,6 +126,18 @@ export default function WomenHome() {
               </View>
               <Text style={[styles.toggleTitle, { color: colors.text }]}>Audio Calls</Text>
               <Text style={[styles.toggleSub, { color: isAudioOnline ? '#FF4D67' : colors.subText }]}>{isAudioOnline ? 'Active' : 'Inactive'}</Text>
+              {isAudioOnline && (
+                <View style={styles.rateRow}>
+                  <View style={styles.rateItem}>
+                    <FontAwesome5 name="coins" size={10} color="#FFD700" />
+                    <Text style={styles.rateText}>10/min</Text>
+                  </View>
+                  <View style={styles.rateItem}>
+                    <FontAwesome5 name="rupee-sign" size={10} color="#4CAF50" />
+                    <Text style={styles.rateText}>1.4/min</Text>
+                  </View>
+                </View>
+              )}
             </View>
 
             {/* Video Toggle */}
@@ -143,6 +155,18 @@ export default function WomenHome() {
               </View>
               <Text style={[styles.toggleTitle, { color: colors.text }]}>Video Calls</Text>
               <Text style={[styles.toggleSub, { color: isVideoOnline ? '#9C27B0' : colors.subText }]}>{isVideoOnline ? 'Active' : 'Inactive'}</Text>
+              {isVideoOnline && (
+                <View style={styles.rateRow}>
+                  <View style={styles.rateItem}>
+                    <FontAwesome5 name="coins" size={10} color="#FFD700" />
+                    <Text style={styles.rateText}>60/min</Text>
+                  </View>
+                  <View style={styles.rateItem}>
+                    <FontAwesome5 name="rupee-sign" size={10} color="#4CAF50" />
+                    <Text style={styles.rateText}>6.0/min</Text>
+                  </View>
+                </View>
+              )}
             </View>
           </View>
         </View>
@@ -162,11 +186,18 @@ export default function WomenHome() {
           >
             <View style={styles.totalEarnedRow}>
               <View style={styles.coinIconBox}>
-                <FontAwesome5 name="coins" size={24} color="#FFD700" />
+                <FontAwesome5 name="coins" size={22} color="#FFD700" />
               </View>
-              <View>
-                <Text style={[styles.totalEarnedText, { color: colors.text }]}>{appUser?.coins?.toLocaleString() || '0'}</Text>
-                <Text style={styles.totalEarnedSub}>Available Wallet Balance</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.totalEarnedText, { color: colors.text, fontSize: 24 }]}>{appUser?.coins?.toLocaleString() || '0'}</Text>
+                <Text style={styles.totalEarnedSub}>Coins</Text>
+              </View>
+              <View style={[styles.coinIconBox, { backgroundColor: 'rgba(76, 175, 80, 0.1)', borderColor: 'rgba(76, 175, 80, 0.2)' }]}>
+                <FontAwesome5 name="rupee-sign" size={22} color="#4CAF50" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.totalEarnedText, { color: colors.text, fontSize: 24 }]}>₹{appUser?.rupeeBalance?.toFixed(2) || '0.00'}</Text>
+                <Text style={styles.totalEarnedSub}>Rupees</Text>
               </View>
             </View>
 
@@ -384,6 +415,29 @@ const styles = StyleSheet.create({
   toggleSub: {
     fontSize: 12,
     fontWeight: '600',
+  },
+  rateRow: {
+    flexDirection: 'row',
+    marginTop: 12,
+    gap: 8,
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  rateItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+  },
+  rateText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#fff',
   },
   reportCard: {
     padding: 24,

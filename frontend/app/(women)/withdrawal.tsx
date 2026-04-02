@@ -33,8 +33,8 @@ export default function Withdrawal() {
   const [ifscCode, setIfscCode] = useState('');
   const [accountHolder, setAccountHolder] = useState('');
 
+  const rupeeValue = appUser?.rupeeBalance || 0;
   const totalCoins = appUser?.coins || 0;
-  const rupeeValue = totalCoins / 10;
   const minimumWithdrawal = 50;
 
   const handleWithdraw = async () => {
@@ -46,7 +46,7 @@ export default function Withdrawal() {
       Alert.alert('Error', `Minimum withdrawal amount is ₹${minimumWithdrawal}`);
       return;
     }
-    if (coinsToDeduct > totalCoins) {
+    if (reqAmount > rupeeValue) {
       Alert.alert('Error', 'Insufficient balance');
       return;
     }
@@ -132,7 +132,7 @@ export default function Withdrawal() {
           
           <View style={styles.balanceContainer}>
             <Text style={styles.balanceLabel}>Withdrawable Balance</Text>
-            <Text style={styles.balanceRs}>₹ {rupeeValue}</Text>
+            <Text style={styles.balanceRs}>₹ {rupeeValue.toFixed(2)}</Text>
           </View>
           
           <View style={styles.cardFooter}>
@@ -177,7 +177,7 @@ export default function Withdrawal() {
               onChangeText={setAmount}
             />
           </View>
-          <Text style={[styles.helperText, { color: colors.subText }]}>Min. ₹{minimumWithdrawal} | (10 Coins = 1 INR)</Text>
+          <Text style={[styles.helperText, { color: colors.subText }]}>Min. ₹{minimumWithdrawal} | Withdrawal uses your Rupee Balance</Text>
         </View>
 
         {method === 'upi' ? (

@@ -39,6 +39,7 @@ export interface User {
   avgRating?: number;
   sumRatings?: number;
   totalRatings?: number;
+  rupeeBalance?: number;
 }
 
 export const AVATAR_MAPPING: Record<string, any> = {
@@ -491,7 +492,7 @@ export const recordCallRecord = async (record: Omit<CallRecord, 'id'>) => {
       addDoc(collection(firebaseDb, 'Transactions'), {
         userId: record.receiverId,
         coins: record.cost,
-        amountInRupees: record.cost / 10,
+        amountInRupees: record.type === 'audio' ? (record.cost * 0.14) : (record.cost * 0.10),
         type: 'call_earn',
         status: 'success',
         timestamp,
@@ -589,9 +590,11 @@ export const executeCallTransfer = async (
       transaction.update(callerRef, { coins: increment(-amount) });
 
       // 2. Update Receiver
+      const inrEarned = type === 'audio' ? (amount * 0.14) : (amount * 0.10);
       const receiverUpdates: any = {
         coins: increment(amount),
         allTimeEarnings: increment(amount),
+        rupeeBalance: increment(inrEarned)
       };
 
       if (type === 'audio') {
@@ -642,7 +645,8 @@ export const sendGift = async (senderId: string, receiverId: string, coins: numb
       transaction.update(receiverRef, { 
         coins: increment(coins),
         allTimeEarnings: increment(coins),
-        giftEarnings: increment(coins)
+        giftEarnings: increment(coins),
+        rupeeBalance: increment(coins * 0.10)
       });
 
       // 2. Record Transactions (using transaction.set/add if possible, but Firestore transactions usually require knowing the ID or using non-transactional addDoc for logs)

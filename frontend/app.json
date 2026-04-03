@@ -7,6 +7,11 @@
     "icon": "./assets/images/icon.png",
     "scheme": "frontend",
     "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/images/splashscreen.jpg",
+      "resizeMode": "cover",
+      "backgroundColor": "#0F0F13"
+    },
     "newArchEnabled": true,
     "runtimeVersion": {
       "policy": "appVersion"
@@ -37,14 +42,7 @@
       "expo-font",
       "expo-secure-store",
       "expo-secure-store",
-      [
-        "expo-splash-screen",
-        {
-          "image": "./assets/images/splashscreen.jpg",
-          "resizeMode": "cover",
-          "backgroundColor": "#0F0F13"
-        }
-      ]
+      "expo-splash-screen"
     ],
     "experiments": {
       "typedRoutes": true,

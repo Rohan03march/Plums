@@ -9,7 +9,7 @@
     "userInterfaceStyle": "automatic",
     "splash": {
       "resizeMode": "cover",
-      "backgroundColor": "#641EA00F"
+      "backgroundColor": "#0C0C14"
     },
     "newArchEnabled": true,
     "runtimeVersion": {
@@ -25,7 +25,7 @@
       ],
       "splash": {
         "resizeMode": "cover",
-        "backgroundColor": "#641EA00F"
+        "backgroundColor": "#0C0C14"
       },
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",

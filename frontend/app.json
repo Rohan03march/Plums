@@ -24,6 +24,11 @@
         "RECORD_AUDIO",
         "MODIFY_AUDIO_SETTINGS"
       ],
+      "splash": {
+        "image": "./assets/images/splashscreen.jpg",
+        "resizeMode": "cover",
+        "backgroundColor": "#0F0F13"
+      },
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/images/icon.png"

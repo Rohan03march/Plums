@@ -192,6 +192,7 @@ export default function Login() {
               </Animated.View>
             ) : (
               <Animated.View entering={FadeInUp.duration(800)}>
+                <Text style={styles.otpSentTo}>OTP is sent to +91 {phoneNumber}</Text>
                 <View style={[styles.inputBox, { borderColor: colors.border }]}>
                   <Ionicons name="shield-checkmark-outline" size={20} color="rgba(255,255,255,0.4)" style={{ marginRight: 15 }} />
                   <TextInput
@@ -374,6 +375,13 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.4)',
     fontSize: 13,
     fontWeight: '600',
+  },
+  otpSentTo: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 14,
+    fontWeight: '500',
+    textAlign: 'center',
+    marginBottom: 20,
   },
   footer: {
     position: 'absolute',

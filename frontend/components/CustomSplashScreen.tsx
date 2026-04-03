@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import { View, Text, StyleSheet, Dimensions, ActivityIndicator } from 'react-native';
-import { useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
@@ -8,21 +7,15 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
   withDelay,
-  withRepeat,
   Easing,
   withSpring,
-  interpolate,
 } from 'react-native-reanimated';
-import { useAuth } from '../context/AuthContext';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
+const LOGO_SIZE = width * 0.68;
 
-export default function SplashScreen() {
-  const router = useRouter();
-  const { user, appUser, loading } = useAuth();
-
+export default function CustomSplashScreen() {
   const logoOpacity = useSharedValue(0);
   const logoScale = useSharedValue(0.82);
   const titleOpacity = useSharedValue(0);
@@ -31,38 +24,15 @@ export default function SplashScreen() {
   const footerOpacity = useSharedValue(0);
 
   useEffect(() => {
-    // Logo fades in with a gentle scale
     logoOpacity.value = withTiming(1, { duration: 1000, easing: Easing.out(Easing.quad) });
     logoScale.value = withSpring(1, { damping: 18, stiffness: 50 });
 
-    // Title slides up
     titleOpacity.value = withDelay(600, withTiming(1, { duration: 700 }));
     titleY.value = withDelay(600, withSpring(0, { damping: 20, stiffness: 55 }));
 
-    // Slogan fades in after title
     sloganOpacity.value = withDelay(1000, withTiming(1, { duration: 700 }));
-
-    // Footer last
     footerOpacity.value = withDelay(1400, withTiming(1, { duration: 600 }));
   }, []);
-
-  useEffect(() => {
-    if (!loading) {
-      const timer = setTimeout(async () => {
-        if (user) {
-          if (appUser?.isProfileComplete) {
-            router.replace(appUser.role === 'man' ? '/(men)' : '/(women)');
-          } else {
-            router.replace('/role');
-          }
-        } else {
-          const hasSeenOnboarding = await AsyncStorage.getItem('hasSeenOnboarding');
-          router.replace(hasSeenOnboarding === 'true' ? '/login' : '/onboarding');
-        }
-      }, 3500);
-      return () => clearTimeout(timer);
-    }
-  }, [loading, user, appUser]);
 
   const logoStyle = useAnimatedStyle(() => ({
     opacity: logoOpacity.value,
@@ -86,7 +56,6 @@ export default function SplashScreen() {
     <View style={styles.root}>
       <StatusBar style="light" />
 
-      {/* Background gradient */}
       <LinearGradient
         colors={['#12071A', '#0C0C14', '#130B1A']}
         locations={[0, 0.5, 1]}
@@ -95,13 +64,10 @@ export default function SplashScreen() {
         end={{ x: 0.7, y: 1 }}
       />
 
-      {/* Subtle top-right accent */}
       <View style={styles.accentTopRight} />
-      {/* Subtle bottom-left accent */}
       <View style={styles.accentBottomLeft} />
 
       <View style={styles.body}>
-        {/* Logo section */}
         <Animated.View style={[styles.logoWrap, logoStyle]}>
           <Image
             source={require('../assets/images/friend_plums.png')}
@@ -110,9 +76,8 @@ export default function SplashScreen() {
           />
         </Animated.View>
 
-        {/* Text section */}
-        <Animated.View style={[styles.titleRow, titleStyle]}>
-          <Text style={styles.title}>Plums</Text>
+        <Animated.View style={styles.titleRow} entering={undefined}>
+          <Animated.Text style={[styles.title, titleStyle]}>Plums</Animated.Text>
         </Animated.View>
 
         <Animated.View style={[styles.sloganRow, sloganStyle]}>
@@ -122,15 +87,12 @@ export default function SplashScreen() {
         </Animated.View>
       </View>
 
-      {/* Footer */}
       <Animated.View style={[styles.footer, footerStyle]}>
         <ActivityIndicator size="small" color="rgba(255,45,85,0.7)" />
       </Animated.View>
     </View>
   );
 }
-
-const LOGO_SIZE = width * 0.68;
 
 const styles = StyleSheet.create({
   root: {

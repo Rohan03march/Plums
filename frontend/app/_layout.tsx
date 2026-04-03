@@ -141,17 +141,17 @@ export default function RootLayout() {
     }
   }, [appIsReady]);
 
-  if (!appIsReady) {
-    return null;
-  }
-
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <ThemeProvider>
           <AuthProvider>
             <CallProvider>
-              <AppView onLayoutRootView={onLayoutRootView} />
+              <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
+                {!appIsReady ? null : (
+                  <AppView onLayoutRootView={onLayoutRootView} />
+                )}
+              </View>
             </CallProvider>
           </AuthProvider>
         </ThemeProvider>

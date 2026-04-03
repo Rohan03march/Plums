@@ -38,8 +38,8 @@ export default function Profile() {
       "Are you sure you want to logout?",
       [
         { text: "Cancel", style: "cancel" },
-        { 
-          text: "Logout", 
+        {
+          text: "Logout",
           style: "destructive",
           onPress: async () => {
             try {
@@ -75,8 +75,8 @@ export default function Profile() {
   );
 
   return (
-    <ScrollView 
-      style={[styles.container, { backgroundColor: theme.bg }]} 
+    <ScrollView
+      style={[styles.container, { backgroundColor: theme.bg }]}
       showsVerticalScrollIndicator={false}
       refreshControl={
         <RefreshControl
@@ -90,9 +90,9 @@ export default function Profile() {
       {/* Header Profile Area */}
       <View style={styles.profileHeader}>
         <View style={styles.avatarContainer}>
-          <Image 
-            source={getAvatarSource(appUser?.avatar, 'man')} 
-            style={[styles.avatar, { borderColor: theme.border }]} 
+          <Image
+            source={getAvatarSource(appUser?.avatar, 'man')}
+            style={[styles.avatar, { borderColor: theme.border }]}
           />
         </View>
         <Text style={[styles.name, { color: theme.text }]}>{appUser?.displayName || 'User'}</Text>
@@ -101,7 +101,7 @@ export default function Profile() {
 
       {/* Gold Shop Banner */}
       <TouchableOpacity onPress={() => router.push('/(men)/wallet')} activeOpacity={0.9}>
-        <LinearGradient colors={['#FFD700', '#F59E0B']} style={styles.goldBanner} start={{x:0,y:0}} end={{x:1,y:1}}>
+        <LinearGradient colors={['#FFD700', '#F59E0B']} style={styles.goldBanner} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
           <View style={styles.goldBannerLeft}>
             <FontAwesome5 name="coins" size={24} color="#000" />
             <View>
@@ -125,7 +125,7 @@ export default function Profile() {
           decelerationRate="fast"
           contentContainerStyle={{ paddingHorizontal: 20 }}
           renderItem={({ item, index }) => (
-            <Animated.View 
+            <Animated.View
               entering={FadeInRight.delay(index * 200).duration(600).springify()}
               style={[styles.carouselCard, { backgroundColor: theme.card, borderColor: theme.border }]}
             >
@@ -142,10 +142,10 @@ export default function Profile() {
       {/* Actions List */}
       <View style={styles.actionSection}>
         <Text style={styles.sectionTitle}>Preferences</Text>
-        <ActionItem 
-          icon={isDark ? "moon" : "sunny"} 
-          title="Dark Mode" 
-          color="#8B5CF6" 
+        <ActionItem
+          icon={isDark ? "moon" : "sunny"}
+          title="Dark Mode"
+          color="#8B5CF6"
           isToggle={true}
           toggleValue={isDark}
           onToggle={toggleTheme}
@@ -153,9 +153,9 @@ export default function Profile() {
 
         <Text style={[styles.sectionTitle, { marginTop: 20 }]}>Payment Preference</Text>
         <View style={styles.paymentPreference}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[
-              styles.payBtn, 
+              styles.payBtn,
               appUser?.paymentMethod === 'upi' && { backgroundColor: '#FF4D67' },
               { borderColor: appUser?.paymentMethod === 'upi' ? '#FF4D67' : theme.border }
             ]}
@@ -165,9 +165,9 @@ export default function Profile() {
             <Text style={[styles.payBtnText, { color: appUser?.paymentMethod === 'upi' ? '#fff' : theme.text }]}>UPI</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[
-              styles.payBtn, 
+              styles.payBtn,
               appUser?.paymentMethod === 'card' && { backgroundColor: '#FF4D67' },
               { borderColor: appUser?.paymentMethod === 'card' ? '#FF4D67' : theme.border }
             ]}
@@ -181,16 +181,16 @@ export default function Profile() {
         <Text style={[styles.sectionTitle, { marginTop: 20 }]}>History</Text>
         <ActionItem icon="time" title="Call History" color="#3B82F6" onPress={() => router.push('/(men)/call-history')} />
         <ActionItem icon="receipt" title="Transaction History" color="#10B981" onPress={() => router.push('/(men)/tx-history')} />
-        
+
         <Text style={[styles.sectionTitle, { marginTop: 20 }]}>About & Support</Text>
         <ActionItem icon="book" title="App Guide" color="#0EA5E9" onPress={() => router.push('/guide')} />
         <ActionItem icon="help-buoy" title="Help & Support" color="#EC4899" onPress={() => router.push('/support')} />
         <ActionItem icon="shield-checkmark" title="Privacy Policy" color="#10B981" onPress={() => router.push('/privacy')} />
-        
+
         <Text style={[styles.sectionTitle, { marginTop: 20 }]}></Text>
         <ActionItem icon="log-out" title="Logout" color="#FF4D67" onPress={handleLogout} />
       </View>
-      <View style={{height: 100}} />
+      <View style={{ height: 100 }} />
     </ScrollView>
   );
 }

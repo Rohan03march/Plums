@@ -8,16 +8,8 @@
     "scheme": "frontend",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "updates": {
-      "url": "https://u.expo.dev/4d2d3d7f-6ee4-4299-8c16-a674d0b0c76d"
-    },
     "runtimeVersion": {
       "policy": "appVersion"
-    },
-    "splash": {
-      "image": "./assets/images/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#6C3EF4"
     },
     "android": {
       "package": "com.rohan.callapp",
@@ -30,11 +22,6 @@
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/images/icon.png"
-      },
-      "splash": {
-        "image": "./assets/images/splash.png",
-        "resizeMode": "contain",
-        "backgroundColor": "#6C3EF4"
       },
       "edgeToEdgeEnabled": true,
       "launchMode": "singleTask",
@@ -49,7 +36,15 @@
       "expo-asset",
       "expo-font",
       "expo-secure-store",
-      "expo-splash-screen"
+      "expo-secure-store",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splashscreen.jpg",
+          "resizeMode": "cover",
+          "backgroundColor": "#0F0F13"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

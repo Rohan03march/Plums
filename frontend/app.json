@@ -8,6 +8,7 @@
     "scheme": "frontend",
     "userInterfaceStyle": "automatic",
     "splash": {
+      "image": "./assets/images/friend_plums.png",
       "resizeMode": "cover",
       "backgroundColor": "#0C0C14"
     },
@@ -24,6 +25,7 @@
         "MODIFY_AUDIO_SETTINGS"
       ],
       "splash": {
+        "image": "./assets/images/friend_plums.png",
         "resizeMode": "cover",
         "backgroundColor": "#0C0C14"
       },

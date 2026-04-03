@@ -8,9 +8,8 @@
     "scheme": "frontend",
     "userInterfaceStyle": "automatic",
     "splash": {
-      "image": "./assets/images/splashscreen.jpg",
       "resizeMode": "cover",
-      "backgroundColor": "#0F0F13"
+      "backgroundColor": "rgba(100, 30, 160, 0.06)"
     },
     "newArchEnabled": true,
     "runtimeVersion": {
@@ -25,9 +24,8 @@
         "MODIFY_AUDIO_SETTINGS"
       ],
       "splash": {
-        "image": "./assets/images/splashscreen.jpg",
         "resizeMode": "cover",
-        "backgroundColor": "#0F0F13"
+        "backgroundColor": "rgba(100, 30, 160, 0.06)"
       },
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",

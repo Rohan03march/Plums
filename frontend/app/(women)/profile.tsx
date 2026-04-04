@@ -19,7 +19,7 @@ export default function Profile() {
   const { colors, toggleTheme, isDark } = useTheme();
   const { appUser, signOut } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
-  const [isPayoutPending, setIsPayoutPending] = useState(false);
+  const [pendingCoins, setPendingCoins] = useState(0);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -28,8 +28,8 @@ export default function Profile() {
 
   React.useEffect(() => {
     if (!appUser?.id) return;
-    const unsubscribe = subscribeToPendingPayout(appUser.id, (pending) => {
-      setIsPayoutPending(pending);
+    const unsubscribe = subscribeToPendingPayout(appUser.id, (coins) => {
+      setPendingCoins(coins);
     });
     return () => unsubscribe();
   }, [appUser?.id]);
@@ -136,11 +136,11 @@ export default function Profile() {
           <Text style={[styles.sectionHeading, { color: colors.subText }]}>REVENUE & GROWTH</Text>
           <View style={[styles.actionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <ActionItem
-              icon={isPayoutPending ? "time-outline" : "wallet"}
+              icon={pendingCoins > 0 ? "time-outline" : "wallet"}
               title="Wallet & Payouts"
-              subtitle={isPayoutPending ? "Transaction Processing..." : `Current Balance: ₹${(appUser?.rupeeBalance || 0).toFixed(2)}`}
-              color={isPayoutPending ? "#FFD700" : "#FF4D67"}
-              onPress={() => !isPayoutPending && router.push('/(women)/withdrawal')}
+              subtitle={pendingCoins > 0 ? `Processing ₹${(pendingCoins / 10).toFixed(2)}...` : `Current Balance: ₹${(appUser?.rupeeBalance || 0).toFixed(2)}`}
+              color={pendingCoins > 0 ? "#FFD700" : "#FF4D67"}
+              onPress={() => pendingCoins === 0 && router.push('/(women)/withdrawal')}
             />
             <ActionItem
               icon="receipt"

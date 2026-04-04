@@ -348,9 +348,9 @@ export const updateUserProfile = async (uid: string, data: Partial<User>) => {
   }
 };
 
-export const subscribeToPendingPayout = (userId: string, callback: (isPending: boolean) => void) => {
+export const subscribeToPendingPayout = (userId: string, callback: (pendingCoins: number) => void) => {
   if (!userId) {
-    callback(false);
+    callback(0);
     return () => {};
   }
   const q = query(
@@ -361,10 +361,15 @@ export const subscribeToPendingPayout = (userId: string, callback: (isPending: b
   );
 
   return onSnapshot(q, (snapshot) => {
-    callback(!snapshot.empty);
+    if (!snapshot.empty) {
+      const data = snapshot.docs[0].data();
+      callback(data.coins || 0);
+    } else {
+      callback(0);
+    }
   }, (error) => {
     console.error("Error subscribing to pending payouts:", error);
-    callback(false);
+    callback(0);
   });
 };
 

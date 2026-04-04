@@ -32,7 +32,8 @@ export default function WomenHome() {
   const { colors, isDark } = useTheme();
   const { appUser, user, loading } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
-  const [isPayoutPending, setIsPayoutPending] = useState(false);
+  const [pendingCoins, setPendingCoins] = useState(0);
+
 
   // Period Selection States
   const [selectedPeriod, setSelectedPeriod] = useState<'today' | 'yesterday' | 'week' | 'lifetime'>('today');
@@ -76,9 +77,10 @@ export default function WomenHome() {
     }
 
     // Payout pending listener
-    const unsubscribePayout = subscribeToPendingPayout(user.uid, (pending) => {
-      setIsPayoutPending(pending);
+    const unsubscribePayout = subscribeToPendingPayout(user.uid, (coins) => {
+      setPendingCoins(coins);
     });
+
 
     // 24-hour reset logic for today's earnings
     const checkAndResetEarnings = async () => {
@@ -197,17 +199,17 @@ export default function WomenHome() {
             </View>
           </View>
           <TouchableOpacity
-            onPress={() => !isPayoutPending && router.push('/(women)/withdrawal')}
-            disabled={isPayoutPending}
+            onPress={() => pendingCoins === 0 && router.push('/(women)/withdrawal')}
+            disabled={pendingCoins > 0}
             style={[
               styles.coinBalanceBtn,
               { backgroundColor: isDark ? 'rgba(255,215,0,0.1)' : 'rgba(255,215,0,0.15)' },
-              isPayoutPending && { opacity: 0.6 }
+              pendingCoins > 0 && { opacity: 0.8 }
             ]}
           >
-            <FontAwesome5 name={isPayoutPending ? "hourglass-half" : "coins"} size={14} color="#FFD700" />
+            <FontAwesome5 name="coins" size={14} color="#FFD700" />
             <Text style={[styles.coinBalanceText, { color: isDark ? '#FFD700' : '#D97706' }]}>
-              {isPayoutPending ? "Pending" : (appUser?.earningBalance?.toLocaleString() || '0')}
+              {((appUser?.earningBalance || 0) + pendingCoins).toLocaleString()}
             </Text>
           </TouchableOpacity>
         </Animated.View>
@@ -291,7 +293,7 @@ export default function WomenHome() {
               </View>
             </View>
 
-            {isPayoutPending && (
+            {pendingCoins > 0 && (
               <View style={styles.payoutNotice}>
                 <Ionicons name="information-circle" size={14} color="#FFD700" />
                 <Text style={styles.payoutNoticeText}>

@@ -49,7 +49,8 @@ export default function Withdrawal() {
   const [loading, setLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [isPayoutPending, setIsPayoutPending] = useState(false);
+  const [pendingCoins, setPendingCoins] = useState(0);
+
   const [isAddingMethod, setIsAddingMethod] = useState(false);
 
   // Bank details
@@ -57,6 +58,20 @@ export default function Withdrawal() {
   const [accountNumber, setAccountNumber] = useState('');
   const [ifscCode, setIfscCode] = useState('');
   const [accountHolder, setAccountHolder] = useState('');
+
+  const TDS_RATE = 0.05; // 5% TDS
+  const breakdown = useMemo(() => {
+    const numAmount = parseFloat(amount) || 0;
+    const tds = numAmount * TDS_RATE;
+    const net = numAmount - tds;
+    const coins = Math.round(numAmount * 10);
+    return {
+      gross: numAmount,
+      tds: parseFloat(tds.toFixed(2)),
+      net: parseFloat(net.toFixed(2)),
+      coins
+    };
+  }, [amount]);
 
   const hasSavedDetails = method === 'upi' ? !!appUser?.savedUpiId : !!appUser?.savedBankDetails;
 
@@ -75,7 +90,7 @@ export default function Withdrawal() {
 
   const savePayoutDetails = async () => {
     if (!appUser?.id) return;
-    
+
     if (method === 'upi' && !upiId.includes('@')) {
       Alert.alert('Error', 'Please enter a valid UPI ID');
       return;
@@ -89,7 +104,7 @@ export default function Withdrawal() {
     try {
       const userRef = doc(firebaseDb, 'Users', appUser.id);
       const updates: any = {};
-      
+
       if (method === 'upi') {
         updates.savedUpiId = upiId;
       } else {
@@ -108,14 +123,14 @@ export default function Withdrawal() {
 
   const deletePayoutDetails = async () => {
     if (!appUser?.id) return;
-    
+
     Alert.alert(
       'Delete Account',
       `Are you sure you want to remove this ${method === 'upi' ? 'UPI ID' : 'Bank Account'}?`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete', 
+        {
+          text: 'Delete',
           style: 'destructive',
           onPress: async () => {
             try {
@@ -147,9 +162,10 @@ export default function Withdrawal() {
 
   useEffect(() => {
     if (!appUser?.id) return;
-    const unsubscribe = subscribeToPendingPayout(appUser.id, (pending) => {
-      setIsPayoutPending(pending);
+    const unsubscribe = subscribeToPendingPayout(appUser.id, (coins) => {
+      setPendingCoins(coins);
     });
+
     return () => unsubscribe();
   }, [appUser?.id]);
 
@@ -160,7 +176,7 @@ export default function Withdrawal() {
   const handleWithdraw = async () => {
     const trimmedAmount = (amount || '').trim();
     const reqAmount = parseFloat(trimmedAmount || '0');
-    
+
     // 100% Reliable: Use Gold as the source of truth (integers)
     const currentGold = appUser?.earningBalance || 0;
     const currentRupee = appUser?.rupeeBalance || 0;
@@ -183,14 +199,14 @@ export default function Withdrawal() {
     }
 
     if (neededGold > currentGold) {
-      Alert.alert('Insufficient Balance', 
+      Alert.alert('Insufficient Balance',
         `Required: ${neededGold} Gold (₹${reqAmount.toFixed(2)})\n` +
         `Available: ${currentGold} Gold (₹${availableRupees.toFixed(2)})\n\n` +
         `Debug Info: ${JSON.stringify({ g: currentGold, r: currentRupee })}`
       );
       return;
     }
-    
+
     // We deduct exactly the coins needed for this amount
     const coinsToDeduct = neededGold;
     if (method === 'upi' && !upiId.includes('@')) {
@@ -222,13 +238,9 @@ export default function Withdrawal() {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'Failed to submit request');
 
-      if (appUser?.id) {
-        // Atomic subtraction from both balances
-        await updateDoc(doc(firebaseDb, 'Users', appUser.id), {
-          earningBalance: increment(-coinsToDeduct),
-          rupeeBalance: increment(-reqAmount),
-        });
-      }
+      // Balance deduction is now handled exclusively by the backend API
+      // to avoid double deduction and ensure atomic transactions.
+
 
       Alert.alert('Success', `Withdrawal request for ₹${reqAmount} submitted successfully.`);
       setAmount('');
@@ -327,32 +339,65 @@ export default function Withdrawal() {
         </BlurView>
       </Animated.View>
 
-      <Animated.View entering={FadeInDown.delay(500).duration(800).springify()}>
-        {isPayoutPending && (
-          <View style={styles.pendingBanner}>
-            <View style={styles.pendingIconBg}>
-              <Ionicons name="time" size={20} color="#FFD700" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.pendingTitle}>Transaction Processing</Text>
-              <Text style={styles.pendingSub}>
-                We are currently finalizing your last request. New withdrawals will be available shortly.
+      {pendingCoins > 0 ? (
+        <Animated.View entering={FadeInDown.delay(400).duration(800).springify()} style={styles.pendingHub}>
+          <View style={styles.pendingHubIcon}>
+            <LinearGradient
+              colors={['#FFD700', '#FFA000']}
+              style={styles.pendingHubIconGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <Ionicons name="time" size={32} color="#fff" />
+            </LinearGradient>
+          </View>
+
+          <Text style={[styles.pendingHubTitle, { color: colors.text }]}>Withdrawal in Progress</Text>
+          <Text style={[styles.pendingHubAmount, { color: isDark ? '#fff' : '#000' }]}>₹ {(pendingCoins / 10).toFixed(2)}</Text>
+          
+          <View style={[styles.pendingHubCard, { borderColor: colors.border }]}>
+            <BlurView intensity={isDark ? 30 : 50} tint="light" style={StyleSheet.absoluteFill} />
+            <View style={styles.pendingHubCardInner}>
+              <View style={styles.pendingHubStatusBadge}>
+                <View style={styles.statusDot} />
+                <Text style={styles.statusText}>PENDING PROCESSING</Text>
+              </View>
+              
+              <Text style={[styles.pendingHubMessage, { color: colors.subText }]}>
+                We are currently processing your request. The amount will be transferred to your account within 24 hours.
               </Text>
+              
+              <View style={styles.pendingHubDivider} />
+              
+              <View style={styles.pendingHubDetails}>
+                <View style={styles.detailRow}>
+                  <Ionicons name="shield-checkmark" size={16} color="#00C853" />
+                  <Text style={[styles.detailText, { color: colors.subText }]}>Secure Transaction</Text>
+                </View>
+                <View style={[styles.detailDivider, { backgroundColor: colors.border }]} />
+                <View style={styles.detailRow}>
+                  <Ionicons name="notifications" size={16} color="#FF4D67" />
+                  <Text style={[styles.detailText, { color: colors.subText }]}>Notify on Completion</Text>
+                </View>
+              </View>
             </View>
           </View>
-        )}
+        </Animated.View>
+      ) : (
+        <>
+          <Animated.View entering={FadeInDown.delay(500).duration(800).springify()}>
 
         <Text style={[styles.sectionHeading, { color: colors.subText }]}>WITHDRAWAL METHOD</Text>
         <View style={[
-          styles.methodToggle, 
+          styles.methodToggle,
           { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#F1F5F9' },
-          isPayoutPending && { opacity: 0.6 }
+          pendingCoins > 0 && { opacity: 0.6 }
         ]}>
           <Animated.View style={[styles.toggleIndicator, toggleIndicatorStyle]} />
           <Pressable
             style={styles.toggleBtn}
-            onPress={() => !isPayoutPending && handleMethodToggle('upi')}
-            disabled={isPayoutPending}
+            onPress={() => pendingCoins === 0 && handleMethodToggle('upi')}
+            disabled={pendingCoins > 0}
           >
             <Text style={[styles.toggleText, { color: method === 'upi' ? '#fff' : colors.subText, opacity: method === 'upi' ? 1 : 0.6 }]}>
               <Ionicons name="flash" size={14} color={method === 'upi' ? '#fff' : colors.subText} /> UPI ID
@@ -360,8 +405,8 @@ export default function Withdrawal() {
           </Pressable>
           <Pressable
             style={styles.toggleBtn}
-            onPress={() => !isPayoutPending && handleMethodToggle('bank')}
-            disabled={isPayoutPending}
+            onPress={() => pendingCoins === 0 && handleMethodToggle('bank')}
+            disabled={pendingCoins > 0}
           >
             <Text style={[styles.toggleText, { color: method === 'bank' ? '#fff' : colors.subText, opacity: method === 'bank' ? 1 : 0.6 }]}>
               <Ionicons name="business" size={14} color={method === 'bank' ? '#fff' : colors.subText} /> Bank Transfer
@@ -377,15 +422,15 @@ export default function Withdrawal() {
             <View style={[styles.inputWrapper, { backgroundColor: isDark ? '#1E1E24' : '#F8FAFC', borderColor: colors.border }]}>
               <Text style={[styles.currencyPrefix, { color: colors.text }]}>₹</Text>
               <TextInput
-                style={[styles.input, { color: colors.text }, isPayoutPending && { opacity: 0.5 }]}
+                style={[styles.input, { color: colors.text }, pendingCoins > 0 && { opacity: 0.5 }]}
                 placeholder="0.00"
                 placeholderTextColor="#666"
                 keyboardType="numeric"
                 value={amount}
                 onChangeText={setAmount}
-                editable={!isPayoutPending}
+                editable={pendingCoins === 0}
               />
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={() => {
                   const maxAmount = (totalCoins / 10).toFixed(2);
                   setAmount(maxAmount);
@@ -422,16 +467,16 @@ export default function Withdrawal() {
                   <Text style={styles.inputLabel}>UPI ID</Text>
                   <View style={[styles.inputWrapper, { backgroundColor: isDark ? '#1E1E24' : '#F8FAFC', borderColor: colors.border }]}>
                     <TextInput
-                      style={[styles.input, { color: colors.text }, isPayoutPending && { opacity: 0.5 }]}
+                      style={[styles.input, { color: colors.text }, pendingCoins > 0 && { opacity: 0.5 }]}
                       placeholder="username@bank"
                       placeholderTextColor="#666"
                       value={upiId}
                       onChangeText={setUpiId}
                       autoCapitalize="none"
-                      editable={!isPayoutPending}
+                      editable={pendingCoins === 0}
                     />
                   </View>
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     onPress={savePayoutDetails}
                     style={styles.saveDetailsBtn}
                     disabled={isSaving}
@@ -470,12 +515,12 @@ export default function Withdrawal() {
                     <Text style={styles.inputLabel}>Account Holder Name</Text>
                     <View style={[styles.inputWrapper, { backgroundColor: isDark ? '#1E1E24' : '#F8FAFC', borderColor: colors.border }]}>
                       <TextInput
-                        style={[styles.input, { color: colors.text }, isPayoutPending && { opacity: 0.5 }]}
+                        style={[styles.input, { color: colors.text }, pendingCoins > 0 && { opacity: 0.5 }]}
                         placeholder="Full Name"
                         placeholderTextColor="#666"
                         value={accountHolder}
                         onChangeText={setAccountHolder}
-                        editable={!isPayoutPending}
+                        editable={pendingCoins === 0}
                       />
                     </View>
                   </View>
@@ -483,12 +528,12 @@ export default function Withdrawal() {
                     <Text style={styles.inputLabel}>Bank Name</Text>
                     <View style={[styles.inputWrapper, { backgroundColor: isDark ? '#1E1E24' : '#F8FAFC', borderColor: colors.border }]}>
                       <TextInput
-                        style={[styles.input, { color: colors.text }, isPayoutPending && { opacity: 0.5 }]}
+                        style={[styles.input, { color: colors.text }, pendingCoins > 0 && { opacity: 0.5 }]}
                         placeholder="e.g. HDFC Bank"
                         placeholderTextColor="#666"
                         value={bankName}
                         onChangeText={setBankName}
-                        editable={!isPayoutPending}
+                        editable={pendingCoins === 0}
                       />
                     </View>
                   </View>
@@ -496,13 +541,13 @@ export default function Withdrawal() {
                     <Text style={styles.inputLabel}>Account Number</Text>
                     <View style={[styles.inputWrapper, { backgroundColor: isDark ? '#1E1E24' : '#F8FAFC', borderColor: colors.border }]}>
                       <TextInput
-                        style={[styles.input, { color: colors.text }, isPayoutPending && { opacity: 0.5 }]}
+                        style={[styles.input, { color: colors.text }, pendingCoins > 0 && { opacity: 0.5 }]}
                         placeholder="000000000000"
                         placeholderTextColor="#666"
                         keyboardType="numeric"
                         value={accountNumber}
                         onChangeText={setAccountNumber}
-                        editable={!isPayoutPending}
+                        editable={pendingCoins === 0}
                       />
                     </View>
                   </View>
@@ -510,17 +555,17 @@ export default function Withdrawal() {
                     <Text style={styles.inputLabel}>IFSC Code</Text>
                     <View style={[styles.inputWrapper, { backgroundColor: isDark ? '#1E1E24' : '#F8FAFC', borderColor: colors.border }]}>
                       <TextInput
-                        style={[styles.input, { color: colors.text }, isPayoutPending && { opacity: 0.5 }]}
+                        style={[styles.input, { color: colors.text }, pendingCoins > 0 && { opacity: 0.5 }]}
                         placeholder="IFSC Code"
                         placeholderTextColor="#666"
                         autoCapitalize="characters"
                         value={ifscCode}
                         onChangeText={setIfscCode}
-                        editable={!isPayoutPending}
+                        editable={pendingCoins === 0}
                       />
                     </View>
                   </View>
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     onPress={savePayoutDetails}
                     style={styles.saveDetailsBtn}
                     disabled={isSaving}
@@ -532,13 +577,97 @@ export default function Withdrawal() {
             </Animated.View>
           )}
 
+          {parseFloat(amount) > 0 && (
+            <Animated.View
+              entering={FadeInDown.duration(800).springify()}
+              style={[styles.breakdownContainer, { borderColor: colors.border }]}
+            >
+              <BlurView intensity={isDark ? 40 : 60} tint={isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
+
+              <View style={styles.breakdownInner}>
+                <View style={styles.breakdownHeader}>
+                  <View style={[styles.receiptIcon, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)', borderColor: colors.border }]}>
+                    <Ionicons name="receipt" size={20} color={isDark ? '#fff' : '#000'} />
+                  </View>
+                  <View>
+                    <Text style={[styles.breakdownTitle, { color: colors.text }]}>Payout Summary</Text>
+                    <Text style={[styles.breakdownSub, { color: colors.subText }]}>Estimates based on current rates</Text>
+                  </View>
+                </View>
+
+                <View style={styles.breakdownBody}>
+                  <View style={styles.breakdownRow}>
+                    <Text style={[styles.breakdownLabel, { color: colors.subText }]}>Requested Amount</Text>
+                    <Text style={[styles.breakdownValue, { color: colors.text }]}>₹{breakdown.gross.toFixed(2)}</Text>
+                  </View>
+
+                  <View style={styles.breakdownRow}>
+                    <View style={styles.labelWithInfo}>
+                      <Text style={[styles.breakdownLabel, { color: colors.subText }]}>TDS Deduction</Text>
+                      <View style={styles.tdsBadge}>
+                        <Text style={styles.tdsBadgeText}>5%</Text>
+                      </View>
+                    </View>
+                    <Text style={[styles.breakdownValue, { color: '#FF4D67' }]}>- ₹{breakdown.tds.toFixed(2)}</Text>
+                  </View>
+
+                  <View style={styles.dashedContainer}>
+                    <View style={[styles.dashedLine, { borderColor: colors.border }]} />
+                  </View>
+
+                  <View style={styles.breakdownNetRow}>
+                    <View>
+                      <Text style={[styles.breakdownLabel, { color: colors.text, fontWeight: '800' }]}>Estimated Payout</Text>
+                      <Text style={[styles.netAmountCaption, { color: colors.subText }]}>Credited to your account</Text>
+                    </View>
+                    <View style={styles.netAmountContainer}>
+                      <Text style={[styles.breakdownNetValue, { color: '#00C853' }]}>₹{breakdown.net.toFixed(2)}</Text>
+                    </View>
+                  </View>
+
+                  <View style={[styles.coinInfoBox, { backgroundColor: isDark ? 'rgba(255,215,0,0.1)' : 'rgba(255,215,0,0.05)', borderColor: isDark ? 'rgba(255,215,0,0.2)' : 'rgba(255,215,0,0.1)' }]}>
+                    <View style={styles.coinInfoIcon}>
+                      <MaterialCommunityIcons name="database-arrow-down" size={18} color="#FFD700" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.coinInfoHeading, { color: isDark ? '#FFD700' : '#B8860B' }]}>FUNDS DEDUCTION</Text>
+                      <Text style={[styles.coinInfoText, { color: colors.text }]}>
+                        <Text style={{ fontWeight: '900', color: isDark ? '#fff' : '#000' }}>{breakdown.coins}</Text> Gold coins will be deducted from your total balance.
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
+            </Animated.View>
+          )}
+
+          {/* Guidelines Section */}
+          <View style={[styles.guidelinesContainer, { backgroundColor: isDark ? 'rgba(255, 77, 103, 0.05)' : '#FFF5F6', borderColor: isDark ? 'rgba(255, 77, 103, 0.2)' : '#FFE4E8' }]}>
+            <View style={styles.guidelinesHeader}>
+              <Ionicons name="information-circle" size={18} color="#FF4D67" />
+              <Text style={styles.guidelinesTitle}>PAYOUT GUIDELINES</Text>
+            </View>
+            <View style={styles.guidelineRow}>
+              <View style={styles.guidelineBullet} />
+              <Text style={[styles.guidelineText, { color: colors.subText }]}>Amount will be transferred within <Text style={{ color: colors.text, fontWeight: '800' }}>24 Hours</Text>.</Text>
+            </View>
+            <View style={styles.guidelineRow}>
+              <View style={styles.guidelineBullet} />
+              <Text style={[styles.guidelineText, { color: colors.subText }]}><Text style={{ color: colors.text, fontWeight: '800' }}>5% TDS</Text> will be deducted as per government regulations.</Text>
+            </View>
+            <View style={styles.guidelineRow}>
+              <View style={styles.guidelineBullet} />
+              <Text style={[styles.guidelineText, { color: colors.subText }]}>You cannot request a new withdrawal while one is <Text style={{ color: '#FF4D67', fontWeight: '800' }}>PENDING</Text>.</Text>
+            </View>
+          </View>
+
           <TouchableOpacity
-            style={[styles.button, { opacity: (loading || isPayoutPending) ? 0.7 : 1 }]}
+            style={[styles.button, { opacity: (loading || pendingCoins > 0) ? 0.7 : 1 }]}
             onPress={handleWithdraw}
-            disabled={loading || isPayoutPending}
+            disabled={loading || pendingCoins > 0}
           >
             <LinearGradient
-              colors={isPayoutPending ? ['#8E8E93', '#AEAEB2'] : ['#FF4D67', '#FF7E8D']}
+              colors={pendingCoins > 0 ? ['#8E8E93', '#AEAEB2'] : ['#FF4D67', '#FF7E8D']}
               style={styles.buttonGradient}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
@@ -548,16 +677,22 @@ export default function Withdrawal() {
               ) : (
                 <>
                   <Text style={styles.buttonText}>
-                    {isPayoutPending ? 'Request Pending...' : 'Request Withdraw Now'}
+                    {pendingCoins > 0
+                      ? 'Request Pending...'
+                      : parseFloat(amount) > 0
+                        ? `Withdraw ₹${breakdown.net.toFixed(2)}`
+                        : 'Request Withdraw Now'}
                   </Text>
-                  <Ionicons name={isPayoutPending ? "time-outline" : "arrow-forward"} size={20} color="#fff" />
+                  <Ionicons name={pendingCoins > 0 ? "time-outline" : "arrow-forward"} size={20} color="#fff" />
                 </>
               )}
             </LinearGradient>
           </TouchableOpacity>
         </View>
       </Animated.View>
-    </ScrollView>
+    </>
+    )}
+</ScrollView>
   );
 }
 
@@ -740,5 +875,208 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0.5,
+  },
+
+  // Breakdown Styles
+  breakdownContainer: {
+    borderRadius: 32,
+    borderWidth: 1.5,
+    marginVertical: 12,
+    overflow: 'hidden',
+  },
+  breakdownInner: { padding: 24, gap: 20 },
+  breakdownHeader: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  receiptIcon: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', borderWidth: 1 },
+  breakdownTitle: { fontSize: 16, fontWeight: '900', letterSpacing: -0.5 },
+  breakdownSub: { fontSize: 11, fontWeight: '600', opacity: 0.7 },
+  breakdownBody: { gap: 16 },
+  breakdownRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  breakdownNetRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: 4 },
+  breakdownLabel: { fontSize: 13, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8 },
+  breakdownValue: { fontSize: 16, fontWeight: '800' },
+  breakdownNetValue: { fontSize: 26, fontWeight: '900', letterSpacing: -1 },
+  netAmountCaption: { fontSize: 10, fontWeight: '600', marginTop: 2, textTransform: 'uppercase' },
+  netAmountContainer: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0, 200, 83, 0.05)',
+    shadowColor: '#00C853',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+  },
+  dashedContainer: { height: 1.5, marginVertical: 10, overflow: 'hidden' },
+  dashedLine: { height: 2, borderWidth: 1, borderStyle: 'dashed', borderRadius: 1 },
+  labelWithInfo: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  tdsBadge: { backgroundColor: 'rgba(255, 77, 103, 0.12)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+  tdsBadgeText: { color: '#FF4D67', fontSize: 10, fontWeight: '900' },
+  coinInfoBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 20,
+    borderRadius: 24,
+    gap: 16,
+    marginTop: 8,
+    borderWidth: 1.5,
+  },
+  coinInfoIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 215, 0, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 215, 0, 0.2)'
+  },
+  coinInfoHeading: { fontSize: 10, fontWeight: '900', letterSpacing: 1.5, marginBottom: 4 },
+  coinInfoText: { fontSize: 12, fontWeight: '700', lineHeight: 20 },
+  
+  // Pending Hub Styles
+  pendingHub: {
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    paddingTop: 32,
+    paddingBottom: 40,
+  },
+  pendingHubIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 30,
+    marginBottom: 24,
+    shadowColor: '#FFD700',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 8,
+  },
+  pendingHubIconGradient: {
+    flex: 1,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pendingHubTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+    letterSpacing: -0.5,
+    marginBottom: 8,
+    textTransform: 'uppercase',
+  },
+  pendingHubAmount: {
+    fontSize: 48,
+    fontWeight: '900',
+    letterSpacing: -2,
+    marginBottom: 32,
+  },
+  pendingHubCard: {
+    width: '100%',
+    borderRadius: 32,
+    borderWidth: 1.5,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 5,
+  },
+  pendingHubCardInner: {
+    padding: 24,
+    alignItems: 'center',
+  },
+  pendingHubStatusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 215, 0, 0.15)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 215, 0, 0.3)',
+    marginBottom: 20,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#FFD700',
+  },
+  statusText: {
+    color: '#FFD700',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  pendingHubMessage: {
+    textAlign: 'center',
+    fontSize: 14,
+    lineHeight: 22,
+    fontWeight: '600',
+    marginBottom: 24,
+    paddingHorizontal: 12,
+  },
+  pendingHubDivider: {
+    width: '100%',
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    marginBottom: 24,
+  },
+  pendingHubDetails: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  detailDivider: {
+    width: 1,
+    height: 12,
+  },
+  detailText: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
+  guidelinesContainer: {
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginVertical: 20,
+    gap: 12,
+  },
+  guidelinesHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  guidelinesTitle: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#FF4D67',
+    letterSpacing: 1,
+  },
+  guidelineRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  guidelineBullet: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#FF4D67',
+    marginTop: 6,
+  },
+  guidelineText: {
+    fontSize: 14,
+    lineHeight: 20,
+    flex: 1,
   },
 });

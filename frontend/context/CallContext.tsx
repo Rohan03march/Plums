@@ -57,11 +57,16 @@ const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 const fetchAgoraToken = async (channelName: string, uid: number = 0) => {
   if (!BACKEND_URL) return null;
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout
+
     const response = await fetch(`${BACKEND_URL}/api/agora/token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ channelName, uid, role: 'publisher' }),
+      signal: controller.signal
     });
+    clearTimeout(timeoutId);
     const data = await response.json();
     return data.token;
   } catch (err) {
@@ -320,6 +325,19 @@ export const CallProvider = ({ children }: { children?: React.ReactNode }) => {
     setIsSpeaker(true);
     setIsCameraOn(true);
 
+    // [Optimization] Subscribe to the session IMMEDIATELY so the UI gets participant info 
+    // while we wait for permissions and tokens.
+    if (sessionUnsubscribe.current) sessionUnsubscribe.current();
+    sessionUnsubscribe.current = subscribeToCallSession(sessionId, (updatedSession) => {
+      setActiveCall(updatedSession);
+      if (updatedSession?.status === 'accepted') {
+        wasAcceptedRef.current = true;
+      }
+      if (!updatedSession || updatedSession.status === 'ended' || updatedSession.status === 'rejected') {
+        handleCallTermination(updatedSession, role);
+      }
+    });
+
     if (AGORA_APP_ID === '') {
       console.error('[Agora Context] AGORA_APP_ID is missing in .env');
       Alert.alert('Configuration Error', 'Agora App ID is missing. Please check your .env file.');
@@ -439,17 +457,6 @@ export const CallProvider = ({ children }: { children?: React.ReactNode }) => {
 
     // Note: Navigation is handled by the calling component (e.g. Profile or Layout)
     // to avoid redundant pushes when already on the call screen.
-    
-    if (sessionUnsubscribe.current) sessionUnsubscribe.current();
-    sessionUnsubscribe.current = subscribeToCallSession(sessionId, (updatedSession) => {
-      setActiveCall(updatedSession);
-      if (updatedSession?.status === 'accepted') {
-        wasAcceptedRef.current = true;
-      }
-      if (!updatedSession || updatedSession.status === 'ended' || updatedSession.status === 'rejected') {
-        handleCallTermination(updatedSession, role);
-      }
-    });
   }, [endCall, handleCallTermination]);
 
   const minimizeCall = React.useCallback(() => {

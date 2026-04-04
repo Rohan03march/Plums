@@ -201,13 +201,14 @@ export const getUserData = async (userId: string): Promise<User | null> => {
   }
 };
 
-export const migrateUserRupeeBalance = async (userId: string, coins: number) => {
+export const migrateUserRupeeBalance = async (userId: string, currentGold: number) => {
   try {
     const userRef = doc(firebaseDb, 'Users', userId);
+    // Use the 10:1 ratio for migration
     await updateDoc(userRef, {
-      rupeeBalance: coins / 10
+      rupeeBalance: currentGold / 10
     });
-    console.log(`[Migration] Initialized rupeeBalance for ${userId}: ₹${coins / 10}`);
+    console.log(`[Migration] Initialized rupeeBalance for ${userId}: ₹${currentGold / 10}`);
   } catch (error) {
     console.error(`[Migration] Failed for ${userId}:`, error);
   }
@@ -553,25 +554,6 @@ export const recordCallRecord = async (record: Omit<CallRecord, 'id'>) => {
       updateDoc(receiverRef, { 
         totalCalls: increment(1),
         talkTime: increment(record.durationInMinutes)
-      }),
-      // Record Consolidated Transactions
-      addDoc(collection(firebaseDb, 'Transactions'), {
-        userId: record.callerId,
-        coins: record.cost,
-        amountInRupees: record.cost / 10,
-        type: 'call_spend',
-        status: 'success',
-        timestamp,
-        details: `${record.type.toUpperCase()} Call Payment (${record.duration})`
-      }),
-      addDoc(collection(firebaseDb, 'Transactions'), {
-        userId: record.receiverId,
-        coins: record.cost,
-        amountInRupees: record.type === 'audio' ? (record.cost * 0.14) : (record.cost * 0.10),
-        type: 'call_earn',
-        status: 'success',
-        timestamp,
-        details: `${record.type.toUpperCase()} Call Earning (${record.duration})`
       })
     ]);
 
@@ -666,7 +648,7 @@ export const executeCallTransfer = async (
 
       // 2. Update Receiver
       const normalizedType = (type || '').trim().toLowerCase();
-      const inrEarned = normalizedType === 'audio' ? (amount * 0.14) : (amount * 0.10);
+      const inrEarned = amount * 0.10; // Unified 10:1 ratio as requested by user
       
       const receiverUpdates: any = {
         todayEarnings: increment(amount),
@@ -758,7 +740,8 @@ export const sendGift = async (senderId: string, receiverId: string, coins: numb
         todayEarnings: increment(coins),
         allTimeEarnings: increment(coins),
         giftEarnings: increment(coins),
-        rupeeBalance: increment(coins * 0.10)
+        rupeeBalance: increment(coins * 0.10),
+        earningBalance: increment(coins)
       });
 
       // 2. Record Transactions (using transaction.set/add if possible, but Firestore transactions usually require knowing the ID or using non-transactional addDoc for logs)
@@ -816,10 +799,12 @@ export const updateCreatorRating = async (creatorId: string, rating: number) => 
   }
 };
 
-export const updateCallSessionMeta = async (sessionId: string, meta: any) => {
+export const updateCallSessionMeta = async (sessionId: string, giftData: { amount: number, timestamp: number }) => {
   try {
     const sessionRef = doc(firebaseDb, 'Calls', sessionId);
-    await updateDoc(sessionRef, { meta });
+    await updateDoc(sessionRef, {
+      'meta.lastGift': giftData
+    });
     return true;
   } catch (error) {
     console.error("Error updating session meta:", error);

@@ -114,6 +114,7 @@ export default function CallRoom() {
   const [showGiftMenu, setShowGiftMenu] = useState(false);
   const [heartPops, setHeartPops] = useState<{ id: number, x: number, y: number }[]>([]);
   const [coinJumps, setCoinJumps] = useState<{ id: number }[]>([]);
+  const [showRetry, setShowRetry] = useState(false);
   
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const heartCounter = useRef(0);
@@ -142,20 +143,23 @@ export default function CallRoom() {
   }, [pulseAnim]);
 
   useEffect(() => {
+    let retryTimer: any;
     if (!hasInitialized.current && id) {
       hasInitialized.current = true;
       
-      // Failsafe for instant-navigation: ensure session is marked 'accepted'
-      if (role === 'receiver' && session?.status === 'ringing') {
-        updateCallSession(id as string, 'accepted');
-      }
+      // Failsafe: show retry after 10s if still loading
+      retryTimer = setTimeout(() => {
+        if (loading) setShowRetry(true);
+      }, 10000);
 
       startCall(id as string, role as 'caller' | 'receiver', type as 'audio' | 'video')
-        .then(() => setLoading(false));
+        .then(() => setLoading(false))
+        .catch(() => setLoading(false));
     } else if (session) {
       setLoading(false);
     }
-  }, [id, session, startCall, role, type]);
+    return () => clearTimeout(retryTimer);
+  }, [id, session, startCall, role, type, loading]);
 
   useEffect(() => {
     if (appUser && session) {
@@ -169,21 +173,29 @@ export default function CallRoom() {
   // Handle incoming Agora signals (signaling optimization)
   useEffect(() => {
     if (lastSignal && lastSignal.timestamp > lastProcessedSignalTime.current) {
-      lastProcessedSignalTime.current = lastSignal.timestamp;
-      
-      if (lastSignal.type === 'gift') {
-        if (role === 'receiver') {
-          setGiftNotification(`Received ${lastSignal.data.amount} Gold! ✨`);
-          setTimeout(() => setGiftNotification(null), 5000);
-          setCoinJumps(prev => [...prev, { id: ++heartCounter.current }]);
-        }
-      } else if (lastSignal.type === 'heart') {
+      if (lastSignal.type === 'heart') {
         const id = ++heartCounter.current;
         setHeartPops(prev => [...prev, { id, x: Math.random() * 200 - 100, y: Math.random() * -200 - 50 }]);
         setTimeout(() => setHeartPops(prev => prev.filter(h => h.id !== id)), 1500);
       }
+      // Gift signal is handled by the high-reliability Firestore fallback below
     }
   }, [lastSignal, role]);
+
+  // Handle Firestore-based Gift fallback (100% reliable)
+  useEffect(() => {
+    if (session?.meta?.lastGift && role === 'receiver') {
+      const { amount, timestamp } = session.meta.lastGift;
+      // Only process if it's a new gift (within last 30 seconds of being updated)
+      const now = Date.now();
+      if (now - timestamp < 30000 && timestamp > lastProcessedSignalTime.current) {
+        lastProcessedSignalTime.current = timestamp;
+        setGiftNotification(`Received ${amount} Gold! ✨`);
+        setTimeout(() => setGiftNotification(null), 5000);
+        setCoinJumps(prev => [...prev, { id: ++heartCounter.current }]);
+      }
+    }
+  }, [session?.meta?.lastGift, role]);
 
   const handleBlock = async () => {
     if (!session || !appUser) return;
@@ -243,7 +255,10 @@ export default function CallRoom() {
     // 1. Send Signaling Notification (Optimized - Instant and Zero DB cost)
     sendCallSignal('gift', { amount });
 
-    // 2. Persist Database Transaction (Security - Non-optional)
+    // 2. Update Firestore Status (Reliability Fallback - Ensure she definitely gets it)
+    updateCallSessionMeta(session.id, { amount, timestamp: Date.now() });
+
+    // 3. Persist Database Transaction (Security - Non-optional)
     await sendGift(appUser.id, session.receiverId, amount);
   };
 
@@ -313,12 +328,53 @@ export default function CallRoom() {
     return <RingingView />;
   }
 
-  // Simple skeletal loader for receiver (they only see this for a split second after clicking Answer)
+  // Enhanced skeletal loader for receiver
   if (loading || !session) {
+    const targetName = role === 'receiver' ? session?.callerName : session?.receiverName;
+    const targetAvatar = role === 'receiver' ? session?.callerAvatar : session?.receiverAvatar;
+
     return (
       <View style={[styles.container, { backgroundColor: colors.bg, justifyContent: 'center', alignItems: 'center' }]}>
         <LinearGradient colors={isDark ? ['#1A0B2E', '#0F041A'] : ['#FFF5F7', '#FFFFFF']} style={StyleSheet.absoluteFillObject} />
-        <ActivityIndicator size="large" color="#FF4D67" />
+        
+        <View style={{ alignItems: 'center', gap: 20 }}>
+          {targetAvatar ? (
+            <Image 
+              source={getAvatarSource(targetAvatar, 'woman')} 
+              style={{ width: 120, height: 120, borderRadius: 60, borderWidth: 3, borderColor: colors.primary }}
+            />
+          ) : (
+            <ActivityIndicator size="large" color="#FF4D67" />
+          )}
+          
+          <View style={{ alignItems: 'center' }}>
+            <Text style={{ fontSize: 24, fontWeight: '800', color: colors.text, marginBottom: 8 }}>
+              {targetName || 'Connecting...'}
+            </Text>
+            <Text style={{ fontSize: 16, color: colors.subText, letterSpacing: 1 }}>
+              ESTABLISHING ENCRYPTED LINK
+            </Text>
+          </View>
+
+          {showRetry && (
+            <TouchableOpacity 
+              style={{ marginTop: 40, padding: 15, borderRadius: 12, backgroundColor: 'rgba(255, 77, 103, 0.1)', borderWidth: 1, borderColor: colors.primary }}
+              onPress={() => {
+                setShowRetry(false);
+                startCall(id as string, role as 'caller' | 'receiver', type as 'audio' | 'video').then(() => setLoading(false));
+              }}
+            >
+              <Text style={{ color: colors.primary, fontWeight: '700' }}>Still connecting? Tap to Retry</Text>
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity 
+            style={{ marginTop: 20, padding: 10 }}
+            onPress={endCall}
+          >
+            <Text style={{ color: colors.subText, fontWeight: '600' }}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }

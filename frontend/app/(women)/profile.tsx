@@ -6,7 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import Animated, { FadeInDown, FadeInRight, Layout } from 'react-native-reanimated';
 import { useTheme } from '../../context/ThemeContext';
-import { getAvatarSource } from '../../services/firebaseService';
+import { getAvatarSource, subscribeToPendingPayout } from '../../services/firebaseService';
 import { useAuth } from '../../context/AuthContext';
 
 const { width } = Dimensions.get('window');
@@ -19,11 +19,20 @@ export default function Profile() {
   const { colors, toggleTheme, isDark } = useTheme();
   const { appUser, signOut } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
+  const [isPayoutPending, setIsPayoutPending] = useState(false);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     setTimeout(() => setRefreshing(false), 1500);
   }, []);
+
+  React.useEffect(() => {
+    if (!appUser?.id) return;
+    const unsubscribe = subscribeToPendingPayout(appUser.id, (pending) => {
+      setIsPayoutPending(pending);
+    });
+    return () => unsubscribe();
+  }, [appUser?.id]);
 
   const handleLogout = () => {
     Alert.alert(
@@ -66,7 +75,6 @@ export default function Profile() {
 
   const stats = useMemo(() => [
     { label: 'Rating', value: appUser?.rating?.toFixed(1) || '0.0', icon: 'star', color: '#FFD700' },
-    { label: 'Gifts', value: appUser?.giftEarnings || '0', icon: 'gift', color: '#FF4D67' },
     { label: 'Total Calls', value: appUser?.totalCalls || '0', icon: 'call', color: '#4CAF50' },
     { label: 'Talk Time', value: `${appUser?.talkTime || '0'}m`, icon: 'time', color: '#2196F3' },
   ], [appUser]);
@@ -128,20 +136,11 @@ export default function Profile() {
           <Text style={[styles.sectionHeading, { color: colors.subText }]}>REVENUE & GROWTH</Text>
           <View style={[styles.actionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <ActionItem
-              icon="wallet"
+              icon={isPayoutPending ? "time-outline" : "wallet"}
               title="Wallet & Payouts"
-              subtitle={(() => {
-                const totalEarned = (appUser?.audioEarnings || 0) + (appUser?.videoEarnings || 0) + (appUser?.giftEarnings || 0);
-                const factor = totalEarned > 0 ? Math.min(1, (appUser?.coins || 0) / totalEarned) : 0;
-                const rupeeVal = (
-                  ((appUser?.audioEarnings || 0) * factor * 0.14) +
-                  ((appUser?.videoEarnings || 0) * factor * 0.10) +
-                  ((appUser?.giftEarnings || 0) * factor * 0.10)
-                );
-                return `Current Balance: ₹${rupeeVal.toFixed(2)}`;
-              })()}
-              color="#FF4D67"
-              onPress={() => router.push('/(women)/withdrawal')}
+              subtitle={isPayoutPending ? "Transaction Processing..." : `Current Balance: ₹${(appUser?.rupeeBalance || 0).toFixed(2)}`}
+              color={isPayoutPending ? "#FFD700" : "#FF4D67"}
+              onPress={() => !isPayoutPending && router.push('/(women)/withdrawal')}
             />
             <ActionItem
               icon="receipt"

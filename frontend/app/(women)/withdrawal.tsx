@@ -76,17 +76,41 @@ export default function Withdrawal() {
   const minimumWithdrawal = 50;
 
   const handleWithdraw = async () => {
-    const reqAmount = parseInt(amount);
-    const coinsToDeduct = Math.floor((reqAmount / (rupeeValue || 1)) * totalCoins);
+    const trimmedAmount = (amount || '').trim();
+    const reqAmount = parseFloat(trimmedAmount || '0');
+    
+    // 100% Reliable: Use Gold as the source of truth (integers)
+    const currentGold = appUser?.earningBalance || 0;
+    const currentRupee = appUser?.rupeeBalance || 0;
+    const neededGold = Math.round(reqAmount * 10);
+    const availableRupees = currentGold / 10;
+
+    console.log("[Withdrawal Debug]", {
+      userId: appUser?.id,
+      typedAmount: trimmedAmount,
+      reqAmount,
+      neededGold,
+      currentGold,
+      currentRupee,
+      calculatedAvailRupees: availableRupees
+    });
 
     if (!reqAmount || reqAmount < minimumWithdrawal) {
       Alert.alert('Error', `Minimum withdrawal amount is ₹${minimumWithdrawal}`);
       return;
     }
-    if (reqAmount > rupeeValue) {
-      Alert.alert('Error', 'Insufficient balance');
+
+    if (neededGold > currentGold) {
+      Alert.alert('Insufficient Balance', 
+        `Required: ${neededGold} Gold (₹${reqAmount.toFixed(2)})\n` +
+        `Available: ${currentGold} Gold (₹${availableRupees.toFixed(2)})\n\n` +
+        `Debug Info: ${JSON.stringify({ g: currentGold, r: currentRupee })}`
+      );
       return;
     }
+    
+    // We deduct exactly the coins needed for this amount
+    const coinsToDeduct = neededGold;
     if (method === 'upi' && !upiId.includes('@')) {
       Alert.alert('Error', 'Please enter a valid UPI ID');
       return;
@@ -202,7 +226,7 @@ export default function Withdrawal() {
 
             <View style={styles.balanceContainer}>
               <Text style={styles.balanceLabel}>Withdrawable Balance</Text>
-              <Text style={styles.balanceRs}>₹ {rupeeValue.toFixed(2)}</Text>
+              <Text style={styles.balanceRs}>₹ {(totalCoins / 10).toFixed(2)}</Text>
               <View style={styles.miniBreakdown}>
                 <View style={styles.miniItem}>
                   <Text style={styles.miniLabel}>Available Gold: {totalCoins.toLocaleString()}</Text>
@@ -279,6 +303,15 @@ export default function Withdrawal() {
                 onChangeText={setAmount}
                 editable={!isPayoutPending}
               />
+              <TouchableOpacity 
+                onPress={() => {
+                  const maxAmount = (totalCoins / 10).toFixed(2);
+                  setAmount(maxAmount);
+                }}
+                style={styles.maxBtn}
+              >
+                <Text style={styles.maxBtnText}>MAX</Text>
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -371,8 +404,10 @@ export default function Withdrawal() {
                 <ActivityIndicator color="#fff" size="small" />
               ) : (
                 <>
-                  <Text style={styles.buttonText}>Request Withdraw Now</Text>
-                  <Ionicons name="arrow-forward" size={20} color="#fff" />
+                  <Text style={styles.buttonText}>
+                    {isPayoutPending ? 'Request Pending...' : 'Request Withdraw Now'}
+                  </Text>
+                  <Ionicons name={isPayoutPending ? "time-outline" : "arrow-forward"} size={20} color="#fff" />
                 </>
               )}
             </LinearGradient>
@@ -462,6 +497,8 @@ const styles = StyleSheet.create({
   },
   currencyPrefix: { fontSize: 22, fontWeight: '800', width: 28, textAlign: 'center' },
   input: { flex: 1, fontSize: 17, fontWeight: '700', letterSpacing: 0.4 },
+  maxBtn: { backgroundColor: 'rgba(255, 77, 103, 0.1)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
+  maxBtnText: { color: '#FF4D67', fontSize: 12, fontWeight: '800' },
   button: { height: 68, borderRadius: 34, overflow: 'hidden', marginTop: 12, shadowColor: '#FF4D67', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.35, shadowRadius: 15, elevation: 12 },
   buttonGradient: { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 12 },
   buttonText: { color: '#fff', fontSize: 19, fontWeight: '900', letterSpacing: 0.5 },

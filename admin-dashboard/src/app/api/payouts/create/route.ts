@@ -31,9 +31,10 @@ export async function POST(request: Request) {
     }
 
     const userData = userDoc.data();
-    const currentCoins = userData?.coins || 0;
+    const isWoman = userData?.role === 'woman';
+    const currentGold = isWoman ? (userData?.earningBalance || 0) : (userData?.coins || 0);
 
-    if (currentCoins < coins) {
+    if (currentGold < coins) {
       return NextResponse.json({ error: 'Insufficient balance' }, { status: 400 });
     }
 
@@ -69,10 +70,18 @@ export async function POST(request: Request) {
       details
     });
 
-    // 3. Deduct coins from user balance
-    batch.update(userRef, {
-      coins: admin.firestore.FieldValue.increment(-coins)
-    });
+    // 3. Deduct from user balance
+    const userUpdates: any = {};
+    if (isWoman) {
+      // For creators, deduct from both Gold and INR balances
+      userUpdates.earningBalance = admin.firestore.FieldValue.increment(-coins);
+      userUpdates.rupeeBalance = admin.firestore.FieldValue.increment(-amount);
+    } else {
+      // Fallback for consumers (Men)
+      userUpdates.coins = admin.firestore.FieldValue.increment(-coins);
+    }
+    
+    batch.update(userRef, userUpdates);
 
     await batch.commit();
 

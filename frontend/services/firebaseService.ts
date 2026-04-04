@@ -45,6 +45,13 @@ export interface User {
   sumRatings?: number;
   totalRatings?: number;
   giftSent?: number;
+  savedUpiId?: string;
+  savedBankDetails?: {
+    bankName: string;
+    accountNumber: string;
+    ifscCode: string;
+    accountHolder: string;
+  };
 }
 
 export const AVATAR_MAPPING: Record<string, any> = {

@@ -32,6 +32,11 @@ export async function POST(request: Request) {
 
     const userData = userDoc.data();
     const isWoman = userData?.role === 'woman';
+    
+    // Final values for the payout record
+    const finalAmount = amount;
+    const finalCoins = coins;
+
     const currentGold = isWoman ? (userData?.earningBalance || 0) : (userData?.coins || 0);
 
     if (currentGold < coins) {
@@ -47,8 +52,8 @@ export async function POST(request: Request) {
     
     batch.set(txRef, {
       userId,
-      coins,
-      amountInRupees: amount,
+      coins: finalCoins,
+      amountInRupees: finalAmount,
       type: 'withdrawal',
       status: 'pending',
       timestamp
@@ -61,8 +66,8 @@ export async function POST(request: Request) {
       userName: userName || userData?.displayName || userData?.name || 'Anonymous',
       userAvatar: userAvatar || userData?.avatar || '',
       userEmail: userEmail || userData?.phone || '',
-      amount,
-      coins,
+      amount: finalAmount,
+      coins: finalCoins,
       method,
       status: 'pending',
       transactionId: txRef.id,
@@ -73,16 +78,33 @@ export async function POST(request: Request) {
     // 3. Deduct from user balance
     const userUpdates: any = {};
     if (isWoman) {
-      // For creators, deduct from both Gold and INR balances
-      userUpdates.earningBalance = admin.firestore.FieldValue.increment(-coins);
-      userUpdates.rupeeBalance = admin.firestore.FieldValue.increment(-amount);
+      // PARTIAL WITHDRAWAL Logic: Subtract only the withdrawn portion
+      let goldToDeduct = finalCoins;
+      
+      const audio = userData?.audioEarnings || 0;
+      const toDeductAudio = Math.min(goldToDeduct, audio);
+      goldToDeduct -= toDeductAudio;
+
+      const video = userData?.videoEarnings || 0;
+      const toDeductVideo = Math.min(goldToDeduct, video);
+      goldToDeduct -= toDeductVideo;
+
+      const gift = userData?.giftEarnings || 0;
+      const toDeductGift = Math.min(goldToDeduct, gift);
+      // No need to track remainder here as it's already capped at 0
+
+      userUpdates.audioEarnings = admin.firestore.FieldValue.increment(-toDeductAudio);
+      userUpdates.videoEarnings = admin.firestore.FieldValue.increment(-toDeductVideo);
+      userUpdates.giftEarnings = admin.firestore.FieldValue.increment(-toDeductGift);
+      userUpdates.todayEarnings = admin.firestore.FieldValue.increment(-finalCoins);
+      userUpdates.earningBalance = admin.firestore.FieldValue.increment(-finalCoins);
+      userUpdates.rupeeBalance = admin.firestore.FieldValue.increment(-finalAmount);
     } else {
       // Fallback for consumers (Men)
       userUpdates.coins = admin.firestore.FieldValue.increment(-coins);
     }
     
     batch.update(userRef, userUpdates);
-
     await batch.commit();
 
     return NextResponse.json({ 

@@ -99,7 +99,7 @@ export default function WomenHome() {
       if (appUser && appUser.role === 'woman') {
         const goldBalance = appUser.earningBalance || 0;
         const currentRupee = appUser.rupeeBalance;
-        
+
         // If rupeeBalance is missing but they have gold, or if it's 0 but they have lots of gold
         if (currentRupee === undefined || (currentRupee === 0 && goldBalance > 0)) {
           console.log("[Sync] Triggering balance migration for creator", appUser.id);
@@ -116,7 +116,7 @@ export default function WomenHome() {
   // Real-time Earnings Subscription
   useEffect(() => {
     if (!appUser || appUser.role !== 'woman') return;
-    
+
     // Subscribe to earnings breakdown for the selected period
     const unsubscribeEarnings = subscribeToEarningsBreakdown(appUser.id, selectedPeriod, (breakdown) => {
       setPeriodEarnings(breakdown.total);
@@ -126,7 +126,7 @@ export default function WomenHome() {
         gift: breakdown.gift
       });
     });
-    
+
     return () => unsubscribeEarnings();
   }, [appUser?.id, selectedPeriod]);
 
@@ -200,7 +200,7 @@ export default function WomenHome() {
             onPress={() => !isPayoutPending && router.push('/(women)/withdrawal')}
             disabled={isPayoutPending}
             style={[
-              styles.coinBalanceBtn, 
+              styles.coinBalanceBtn,
               { backgroundColor: isDark ? 'rgba(255,215,0,0.1)' : 'rgba(255,215,0,0.15)' },
               isPayoutPending && { opacity: 0.6 }
             ]}
@@ -295,7 +295,7 @@ export default function WomenHome() {
               <View style={styles.payoutNotice}>
                 <Ionicons name="information-circle" size={14} color="#FFD700" />
                 <Text style={styles.payoutNoticeText}>
-                  Your previous request is being finalized.
+                  Your previous request is being pending.
                 </Text>
               </View>
             )}

@@ -6,7 +6,7 @@ import { BlurView } from 'expo-blur';
 import Animated, { FadeInDown, FadeInRight, Layout, ZoomIn, useAnimatedStyle, useSharedValue, withSpring, withRepeat, withTiming, interpolateColor } from 'react-native-reanimated';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
-import { updateDoc, doc, increment } from 'firebase/firestore';
+import { updateDoc, doc, increment, deleteField } from 'firebase/firestore';
 import { firebaseDb } from '../../config/firebase';
 import { BACKEND_URL } from '../../config/backend';
 import { subscribeToPendingPayout } from '../../services/firebaseService';
@@ -47,14 +47,96 @@ export default function Withdrawal() {
   const [upiId, setUpiId] = useState('');
   const [amount, setAmount] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [isPayoutPending, setIsPayoutPending] = useState(false);
+  const [isAddingMethod, setIsAddingMethod] = useState(false);
 
   // Bank details
   const [bankName, setBankName] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
   const [ifscCode, setIfscCode] = useState('');
   const [accountHolder, setAccountHolder] = useState('');
+
+  const hasSavedDetails = method === 'upi' ? !!appUser?.savedUpiId : !!appUser?.savedBankDetails;
+
+  // Hydrate saved details once when appUser is loaded
+  useEffect(() => {
+    if (appUser && !isAddingMethod) {
+      if (appUser.savedUpiId) setUpiId(appUser.savedUpiId);
+      if (appUser.savedBankDetails) {
+        setBankName(appUser.savedBankDetails.bankName || '');
+        setAccountNumber(appUser.savedBankDetails.accountNumber || '');
+        setIfscCode(appUser.savedBankDetails.ifscCode || '');
+        setAccountHolder(appUser.savedBankDetails.accountHolder || '');
+      }
+    }
+  }, [appUser?.id, method]);
+
+  const savePayoutDetails = async () => {
+    if (!appUser?.id) return;
+    
+    if (method === 'upi' && !upiId.includes('@')) {
+      Alert.alert('Error', 'Please enter a valid UPI ID');
+      return;
+    }
+    if (method === 'bank' && (!bankName || !accountNumber || !ifscCode || !accountHolder)) {
+      Alert.alert('Error', 'Please fill all bank details');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const userRef = doc(firebaseDb, 'Users', appUser.id);
+      const updates: any = {};
+      
+      if (method === 'upi') {
+        updates.savedUpiId = upiId;
+      } else {
+        updates.savedBankDetails = { bankName, accountNumber, ifscCode, accountHolder };
+      }
+
+      await updateDoc(userRef, updates);
+      Alert.alert('Success', 'Payout details saved successfully');
+      setIsAddingMethod(false);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to save payout details');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const deletePayoutDetails = async () => {
+    if (!appUser?.id) return;
+    
+    Alert.alert(
+      'Delete Account',
+      `Are you sure you want to remove this ${method === 'upi' ? 'UPI ID' : 'Bank Account'}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Delete', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const userRef = doc(firebaseDb, 'Users', appUser.id);
+              const updates: any = {};
+              if (method === 'upi') {
+                updates.savedUpiId = deleteField();
+                setUpiId('');
+              } else {
+                updates.savedBankDetails = deleteField();
+                setBankName(''); setAccountNumber(''); setIfscCode(''); setAccountHolder('');
+              }
+              await updateDoc(userRef, updates);
+            } catch (error) {
+              Alert.alert('Error', 'Failed to delete payout details');
+            }
+          }
+        }
+      ]
+    );
+  };
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -316,76 +398,137 @@ export default function Withdrawal() {
           </View>
 
           {method === 'upi' ? (
-            <Animated.View entering={FadeInRight.duration(400)} key="upi-form" style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>UPI ID</Text>
-              <View style={[styles.inputWrapper, { backgroundColor: isDark ? '#1E1E24' : '#F8FAFC', borderColor: colors.border }]}>
-                <TextInput
-                  style={[styles.input, { color: colors.text }, isPayoutPending && { opacity: 0.5 }]}
-                  placeholder="username@bank"
-                  placeholderTextColor="#666"
-                  value={upiId}
-                  onChangeText={setUpiId}
-                  autoCapitalize="none"
-                  editable={!isPayoutPending}
-                />
-              </View>
+            <Animated.View entering={FadeInRight.duration(400)} key="upi-section">
+              {appUser?.savedUpiId && !isAddingMethod ? (
+                <View style={[styles.savedCard, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#F8FAFC', borderColor: colors.border }]}>
+                  <View style={styles.savedCardIcon}>
+                    <Ionicons name="flash" size={24} color="#FFD700" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.savedCardLabel, { color: colors.subText }]}>SAVED UPI ID</Text>
+                    <Text style={[styles.savedCardValue, { color: colors.text }]}>{appUser.savedUpiId}</Text>
+                  </View>
+                  <View style={styles.methodActions}>
+                    <TouchableOpacity onPress={() => setIsAddingMethod(true)} style={styles.iconBtn}>
+                      <Ionicons name="pencil" size={18} color={isDark ? '#fff' : '#000'} />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={deletePayoutDetails} style={[styles.iconBtn, { backgroundColor: 'rgba(255, 77, 103, 0.1)' }]}>
+                      <Ionicons name="trash-outline" size={18} color="#FF4D67" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>UPI ID</Text>
+                  <View style={[styles.inputWrapper, { backgroundColor: isDark ? '#1E1E24' : '#F8FAFC', borderColor: colors.border }]}>
+                    <TextInput
+                      style={[styles.input, { color: colors.text }, isPayoutPending && { opacity: 0.5 }]}
+                      placeholder="username@bank"
+                      placeholderTextColor="#666"
+                      value={upiId}
+                      onChangeText={setUpiId}
+                      autoCapitalize="none"
+                      editable={!isPayoutPending}
+                    />
+                  </View>
+                  <TouchableOpacity 
+                    onPress={savePayoutDetails}
+                    style={styles.saveDetailsBtn}
+                    disabled={isSaving}
+                  >
+                    {isSaving ? <ActivityIndicator size="small" color="#FF4D67" /> : <Text style={styles.saveDetailsBtnText}>+ ADD UPI ID</Text>}
+                  </TouchableOpacity>
+                </View>
+              )}
             </Animated.View>
           ) : (
-            <Animated.View entering={FadeInRight.duration(400)} key="bank-form" style={styles.bankFields}>
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Account Holder Name</Text>
-                <View style={[styles.inputWrapper, { backgroundColor: isDark ? '#1E1E24' : '#F8FAFC', borderColor: colors.border }]}>
-                  <TextInput
-                    style={[styles.input, { color: colors.text }, isPayoutPending && { opacity: 0.5 }]}
-                    placeholder="Full Name"
-                    placeholderTextColor="#666"
-                    value={accountHolder}
-                    onChangeText={setAccountHolder}
-                    editable={!isPayoutPending}
-                  />
+            <Animated.View entering={FadeInRight.duration(400)} key="bank-section">
+              {appUser?.savedBankDetails && !isAddingMethod ? (
+                <View style={[styles.savedCard, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#F8FAFC', borderColor: colors.border }]}>
+                  <View style={styles.savedCardIcon}>
+                    <Ionicons name="business" size={24} color="#FF4D67" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.savedCardLabel, { color: colors.subText }]}>SAVED BANK ACCOUNT</Text>
+                    <Text style={[styles.savedCardValue, { color: colors.text }]}>
+                      {appUser.savedBankDetails.bankName} • {appUser.savedBankDetails.accountNumber.slice(-4).padStart(appUser.savedBankDetails.accountNumber.length, '*')}
+                    </Text>
+                    <Text style={[styles.savedCardSub, { color: colors.subText }]}>{appUser.savedBankDetails.accountHolder}</Text>
+                  </View>
+                  <View style={styles.methodActions}>
+                    <TouchableOpacity onPress={() => setIsAddingMethod(true)} style={styles.iconBtn}>
+                      <Ionicons name="pencil" size={18} color={isDark ? '#fff' : '#000'} />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={deletePayoutDetails} style={[styles.iconBtn, { backgroundColor: 'rgba(255, 77, 103, 0.1)' }]}>
+                      <Ionicons name="trash-outline" size={18} color="#FF4D67" />
+                    </TouchableOpacity>
+                  </View>
                 </View>
-              </View>
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Bank Name</Text>
-                <View style={[styles.inputWrapper, { backgroundColor: isDark ? '#1E1E24' : '#F8FAFC', borderColor: colors.border }]}>
-                  <TextInput
-                    style={[styles.input, { color: colors.text }, isPayoutPending && { opacity: 0.5 }]}
-                    placeholder="e.g. HDFC Bank"
-                    placeholderTextColor="#666"
-                    value={bankName}
-                    onChangeText={setBankName}
-                    editable={!isPayoutPending}
-                  />
+              ) : (
+                <View style={styles.bankFields}>
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Account Holder Name</Text>
+                    <View style={[styles.inputWrapper, { backgroundColor: isDark ? '#1E1E24' : '#F8FAFC', borderColor: colors.border }]}>
+                      <TextInput
+                        style={[styles.input, { color: colors.text }, isPayoutPending && { opacity: 0.5 }]}
+                        placeholder="Full Name"
+                        placeholderTextColor="#666"
+                        value={accountHolder}
+                        onChangeText={setAccountHolder}
+                        editable={!isPayoutPending}
+                      />
+                    </View>
+                  </View>
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Bank Name</Text>
+                    <View style={[styles.inputWrapper, { backgroundColor: isDark ? '#1E1E24' : '#F8FAFC', borderColor: colors.border }]}>
+                      <TextInput
+                        style={[styles.input, { color: colors.text }, isPayoutPending && { opacity: 0.5 }]}
+                        placeholder="e.g. HDFC Bank"
+                        placeholderTextColor="#666"
+                        value={bankName}
+                        onChangeText={setBankName}
+                        editable={!isPayoutPending}
+                      />
+                    </View>
+                  </View>
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Account Number</Text>
+                    <View style={[styles.inputWrapper, { backgroundColor: isDark ? '#1E1E24' : '#F8FAFC', borderColor: colors.border }]}>
+                      <TextInput
+                        style={[styles.input, { color: colors.text }, isPayoutPending && { opacity: 0.5 }]}
+                        placeholder="000000000000"
+                        placeholderTextColor="#666"
+                        keyboardType="numeric"
+                        value={accountNumber}
+                        onChangeText={setAccountNumber}
+                        editable={!isPayoutPending}
+                      />
+                    </View>
+                  </View>
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>IFSC Code</Text>
+                    <View style={[styles.inputWrapper, { backgroundColor: isDark ? '#1E1E24' : '#F8FAFC', borderColor: colors.border }]}>
+                      <TextInput
+                        style={[styles.input, { color: colors.text }, isPayoutPending && { opacity: 0.5 }]}
+                        placeholder="IFSC Code"
+                        placeholderTextColor="#666"
+                        autoCapitalize="characters"
+                        value={ifscCode}
+                        onChangeText={setIfscCode}
+                        editable={!isPayoutPending}
+                      />
+                    </View>
+                  </View>
+                  <TouchableOpacity 
+                    onPress={savePayoutDetails}
+                    style={styles.saveDetailsBtn}
+                    disabled={isSaving}
+                  >
+                    {isSaving ? <ActivityIndicator size="small" color="#FF4D67" /> : <Text style={styles.saveDetailsBtnText}>+ ADD BANK DETAILS</Text>}
+                  </TouchableOpacity>
                 </View>
-              </View>
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Account Number</Text>
-                <View style={[styles.inputWrapper, { backgroundColor: isDark ? '#1E1E24' : '#F8FAFC', borderColor: colors.border }]}>
-                  <TextInput
-                    style={[styles.input, { color: colors.text }, isPayoutPending && { opacity: 0.5 }]}
-                    placeholder="000000000000"
-                    placeholderTextColor="#666"
-                    keyboardType="numeric"
-                    value={accountNumber}
-                    onChangeText={setAccountNumber}
-                    editable={!isPayoutPending}
-                  />
-                </View>
-              </View>
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>IFSC Code</Text>
-                <View style={[styles.inputWrapper, { backgroundColor: isDark ? '#1E1E24' : '#F8FAFC', borderColor: colors.border }]}>
-                  <TextInput
-                    style={[styles.input, { color: colors.text }, isPayoutPending && { opacity: 0.5 }]}
-                    placeholder="IFSC Code"
-                    placeholderTextColor="#666"
-                    autoCapitalize="characters"
-                    value={ifscCode}
-                    onChangeText={setIfscCode}
-                    editable={!isPayoutPending}
-                  />
-                </View>
-              </View>
+              )}
             </Animated.View>
           )}
 
@@ -532,5 +675,70 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     lineHeight: 16,
+  },
+  savedCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 18,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    gap: 16,
+    marginBottom: 8,
+  },
+  savedCardIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  savedCardLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1,
+    marginBottom: 4,
+    textTransform: 'uppercase',
+  },
+  savedCardValue: {
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  savedCardSub: {
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: 2,
+    opacity: 0.8,
+  },
+  methodActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  iconBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+  },
+  saveDetailsBtn: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 77, 103, 0.08)',
+    marginTop: 4,
+  },
+  saveDetailsBtnText: {
+    color: '#FF4D67',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
 });

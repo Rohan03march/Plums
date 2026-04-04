@@ -116,6 +116,7 @@ export default function Login() {
       const credential = PhoneAuthProvider.credential(verificationId, code);
       const userCredential = await signInWithCredential(firebaseAuth, credential);
       const firebaseUser = userCredential.user;
+      setCode(''); // Clear OTP code after successful authentication
 
       const existingData = await getUserData(firebaseUser.uid);
       if (existingData?.isProfileComplete) {

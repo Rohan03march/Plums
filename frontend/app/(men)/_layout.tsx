@@ -88,7 +88,7 @@ export default function MenLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          headerTitle: 'My Profile',
+          headerShown: false,
           title: 'Profile',
           tabBarIcon: ({ color }: { color: string }) => <Ionicons name="person-circle" size={28} color={color} />,
         }}

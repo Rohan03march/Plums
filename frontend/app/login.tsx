@@ -233,8 +233,8 @@ export default function Login() {
           <View style={styles.footer}>
             <Text style={styles.terms}>
               By continuing, you agree to our{' '}
-              <Text style={styles.termLink}>Terms</Text> and{' '}
-              <Text style={styles.termLink}>Privacy Policy</Text>.
+              <Text style={styles.termLink} onPress={() => router.push('/terms')}>Terms</Text> and{' '}
+              <Text style={styles.termLink} onPress={() => router.push('/privacy')}>Privacy Policy</Text>.
             </Text>
           </View>
         </View>

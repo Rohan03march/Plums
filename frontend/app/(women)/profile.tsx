@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Dimensions, Alert, RefreshControl, Platform, StatusBar } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -14,6 +15,7 @@ const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpaci
 
 export default function Profile() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { colors, toggleTheme, isDark } = useTheme();
   const { appUser, signOut } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
@@ -64,6 +66,7 @@ export default function Profile() {
 
   const stats = useMemo(() => [
     { label: 'Rating', value: appUser?.rating?.toFixed(1) || '0.0', icon: 'star', color: '#FFD700' },
+    { label: 'Gifts', value: appUser?.giftEarnings || '0', icon: 'gift', color: '#FF4D67' },
     { label: 'Total Calls', value: appUser?.totalCalls || '0', icon: 'call', color: '#4CAF50' },
     { label: 'Talk Time', value: `${appUser?.talkTime || '0'}m`, icon: 'time', color: '#2196F3' },
   ], [appUser]);
@@ -84,11 +87,6 @@ export default function Profile() {
           entering={FadeInDown.duration(800).springify()}
           style={[styles.headerCard, { backgroundColor: colors.card, borderColor: colors.border }]}
         >
-          <LinearGradient
-            colors={isDark ? ['rgba(255, 77, 103, 0.1)', 'transparent'] : ['rgba(255, 77, 103, 0.05)', 'transparent']}
-            style={styles.headerGradient}
-          />
-
           <View style={styles.headerTop}>
             <View style={styles.avatarWrapper}>
               <View style={[styles.avatarGlow, { shadowColor: colors.primary }]} />
@@ -136,8 +134,8 @@ export default function Profile() {
                 const totalEarned = (appUser?.audioEarnings || 0) + (appUser?.videoEarnings || 0) + (appUser?.giftEarnings || 0);
                 const factor = totalEarned > 0 ? Math.min(1, (appUser?.coins || 0) / totalEarned) : 0;
                 const rupeeVal = (
-                  ((appUser?.audioEarnings || 0) * factor * 0.14) + 
-                  ((appUser?.videoEarnings || 0) * factor * 0.10) + 
+                  ((appUser?.audioEarnings || 0) * factor * 0.14) +
+                  ((appUser?.videoEarnings || 0) * factor * 0.10) +
                   ((appUser?.giftEarnings || 0) * factor * 0.10)
                 );
                 return `Current Balance: ₹${rupeeVal.toFixed(2)}`;
@@ -150,13 +148,6 @@ export default function Profile() {
               title="Transaction History"
               color="#10B981"
               onPress={() => router.push('/(women)/tx-history')}
-            />
-            <ActionItem
-              icon="trending-up"
-              title="Insights & Level"
-              color="#8B5CF6"
-              onPress={() => { }}
-              isLast={true}
             />
           </View>
         </Animated.View>
@@ -199,7 +190,7 @@ export default function Profile() {
           <View style={[styles.actionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <ActionItem icon="help-buoy" title="Help & Support" color="#EC4899" onPress={() => router.push('/support')} />
             <ActionItem icon="shield-checkmark" title="Privacy Policy" color="#10B981" onPress={() => router.push('/privacy')} />
-            <ActionItem icon="document-text" title="Terms of Service" color="#6366f1" onPress={() => { }} isLast={true} />
+            <ActionItem icon="document-text" title="Terms of Service" color="#6366f1" onPress={() => router.push('/terms')} isLast={true} />
           </View>
         </Animated.View>
 
@@ -242,13 +233,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 20,
     elevation: 5,
-  },
-  headerGradient: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 150,
   },
   headerTop: {
     flexDirection: 'row',

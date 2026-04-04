@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Dimensions, Switch, Alert, RefreshControl } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -20,6 +21,7 @@ const SAFETY_TIPS = [
 
 export default function Profile() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { isDark, toggleTheme, colors: theme } = useTheme();
   const { appUser, user, signOut } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
@@ -88,48 +90,103 @@ export default function Profile() {
       }
     >
       {/* Header Profile Area */}
-      <View style={styles.profileHeader}>
-        <View style={styles.avatarContainer}>
-          <Image
-            source={getAvatarSource(appUser?.avatar, 'man')}
-            style={[styles.avatar, { borderColor: theme.border }]}
-          />
-        </View>
-        <Text style={[styles.name, { color: theme.text }]}>{appUser?.displayName || 'User'}</Text>
-        <Text style={[styles.username, { color: theme.subText }]}>@{appUser?.username || 'user'}</Text>
-      </View>
-
-      {/* Gold Shop Banner */}
-      <TouchableOpacity onPress={() => router.push('/(men)/wallet')} activeOpacity={0.9}>
-        <LinearGradient colors={['#FFD700', '#F59E0B']} style={styles.goldBanner} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-          <View style={styles.goldBannerLeft}>
-            <FontAwesome5 name="coins" size={24} color="#000" />
-            <View>
-              <Text style={styles.goldTitle}>Gold Shop</Text>
-              <Text style={styles.goldSub}>Balance: {appUser?.coins || 0} Gold</Text>
+      <View style={[styles.headerSection, { paddingTop: insets.top + 20 }]}>
+        <View style={styles.headerInfoCover}>
+          <View style={styles.headerTop}>
+            <View style={styles.avatarWrapper}>
+              <Image
+                source={getAvatarSource(appUser?.avatar, 'man')}
+                style={[styles.avatar, { borderColor: theme.border }]}
+              />
+              <View style={styles.membershipBadgeWrapper}>
+                <Ionicons name="shield-checkmark" size={14} color="#FFD700" />
+              </View>
+            </View>
+            <View style={styles.nameSection}>
+              <View style={styles.levelRow}>
+                <View style={[styles.statusBadge, { backgroundColor: (appUser?.coins ?? 0) > 50000 ? '#1a1a1a' : '#2a2a2a' }]}>
+                  <Text style={[styles.statusText, { color: (appUser?.coins ?? 0) > 50000 ? '#FFD700' : '#E5E7EB' }]}>
+                    {(appUser?.coins ?? 0) > 50000 ? 'PLATINUM VIP' : ((appUser?.coins ?? 0) > 10000 ? 'GOLD MEMBER' : 'SILVER MEMBER')}
+                  </Text>
+                </View>
+              </View>
+              <Text style={[styles.name, { color: theme.text }]}>{appUser?.displayName || 'Executive User'}</Text>
+              <Text style={[styles.username, { color: theme.subText }]}>@{appUser?.username || 'user'}</Text>
             </View>
           </View>
-          <View style={styles.goldBtn}>
-            <Text style={styles.goldBtnText}>Top Up</Text>
+
+          {/* Stats Bar */}
+          <View style={styles.statsBar}>
+            <View style={styles.statItem}>
+              <Text style={[styles.statValue, { color: theme.text }]}>{(appUser?.totalCalls || 0)}</Text>
+              <Text style={styles.statLabel}>Calls Made</Text>
+            </View>
+            <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
+            <View style={styles.statItem}>
+              <Text style={[styles.statValue, { color: theme.text }]}>{(appUser?.giftSent || 0)}</Text>
+              <Text style={styles.statLabel}>Gifts Sent</Text>
+            </View>
+            <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
+            <View style={styles.statItem}>
+              <Text style={[styles.statValue, { color: theme.text }]}>{Math.floor((appUser?.talkTime || 0) / 60)}h</Text>
+              <Text style={styles.statLabel}>Talk Time</Text>
+            </View>
           </View>
-        </LinearGradient>
+        </View>
+      </View>
+
+      {/* Gold Shop "Black Card" Banner */}
+      <TouchableOpacity
+        onPress={() => router.push('/(men)/wallet')}
+        activeOpacity={0.85}
+        style={styles.cardContainer}
+      >
+        <View style={[styles.goldCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <View style={styles.cardPattern}>
+            <View style={styles.cardHeader}>
+              <View>
+                <Text style={styles.cardBrand}>PLUMS GOLD</Text>
+                <Text style={styles.cardType}>PREMIUM BALANCE</Text>
+              </View>
+              <FontAwesome5 name="coins" size={24} color="#D4AF37" />
+            </View>
+
+            <View style={styles.cardMain}>
+              <Text style={styles.balanceLabel}>AVAILABLE BALANCE</Text>
+              <View style={styles.balanceRow}>
+                <Text style={styles.balanceValue}>{appUser?.coins?.toLocaleString() || 0}</Text>
+                <Text style={styles.balanceUnit}>GOLD</Text>
+              </View>
+            </View>
+
+            <View style={styles.cardFooter}>
+              <Text style={styles.cardHolder}>{appUser?.displayName?.toUpperCase() || 'USER'}</Text>
+              <View style={styles.topUpBtn}>
+                <Text style={styles.topUpText}>RECHARGE</Text>
+                <Ionicons name="add-circle" size={16} color="#000" />
+              </View>
+            </View>
+          </View>
+        </View>
       </TouchableOpacity>
 
-      {/* Safety Carousel */}
+      {/* Safety & Security Carousel */}
       <View style={styles.carouselContainer}>
         <FlatList
           data={SAFETY_TIPS}
           horizontal
           showsHorizontalScrollIndicator={false}
-          snapToInterval={width * 0.8 + 15}
+          snapToInterval={width * 0.75 + 15}
           decelerationRate="fast"
           contentContainerStyle={{ paddingHorizontal: 20 }}
           renderItem={({ item, index }) => (
             <Animated.View
-              entering={FadeInRight.delay(index * 200).duration(600).springify()}
+              entering={FadeInRight.delay(index * 200).duration(800).springify()}
               style={[styles.carouselCard, { backgroundColor: theme.card, borderColor: theme.border }]}
             >
-              <Ionicons name={item.icon} size={28} color="#FF4D67" />
+              <View style={styles.carouselIcon}>
+                <Ionicons name={item.icon} size={20} color="#FF4D67" />
+              </View>
               <View style={styles.carouselText}>
                 <Text style={[styles.carouselTitle, { color: theme.text }]}>{item.title}</Text>
                 <Text style={[styles.carouselDesc, { color: theme.subText }]}>{item.desc}</Text>
@@ -141,54 +198,71 @@ export default function Profile() {
 
       {/* Actions List */}
       <View style={styles.actionSection}>
-        <Text style={styles.sectionTitle}>Preferences</Text>
-        <ActionItem
-          icon={isDark ? "moon" : "sunny"}
-          title="Dark Mode"
-          color="#8B5CF6"
-          isToggle={true}
-          toggleValue={isDark}
-          onToggle={toggleTheme}
-        />
-
-        <Text style={[styles.sectionTitle, { marginTop: 20 }]}>Payment Preference</Text>
-        <View style={styles.paymentPreference}>
-          <TouchableOpacity
-            style={[
-              styles.payBtn,
-              appUser?.paymentMethod === 'upi' && { backgroundColor: '#FF4D67' },
-              { borderColor: appUser?.paymentMethod === 'upi' ? '#FF4D67' : theme.border }
-            ]}
-            onPress={() => updateUserProfile(user!.uid, { paymentMethod: 'upi' })}
-          >
-            <MaterialCommunityIcons name="integrated-circuit-chip" size={20} color={appUser?.paymentMethod === 'upi' ? '#fff' : theme.text} />
-            <Text style={[styles.payBtnText, { color: appUser?.paymentMethod === 'upi' ? '#fff' : theme.text }]}>UPI</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.payBtn,
-              appUser?.paymentMethod === 'card' && { backgroundColor: '#FF4D67' },
-              { borderColor: appUser?.paymentMethod === 'card' ? '#FF4D67' : theme.border }
-            ]}
-            onPress={() => updateUserProfile(user!.uid, { paymentMethod: 'card' })}
-          >
-            <Ionicons name="card" size={20} color={appUser?.paymentMethod === 'card' ? '#fff' : theme.text} />
-            <Text style={[styles.payBtnText, { color: appUser?.paymentMethod === 'card' ? '#fff' : theme.text }]}>Card</Text>
-          </TouchableOpacity>
+        <Text style={styles.categoryLabel}>MANAGEMENT</Text>
+        <View style={[styles.bentoGroup, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <ActionItem
+            icon={isDark ? "moon" : "sunny"}
+            title="Appearance"
+            rightText={isDark ? "Dark" : "Light"}
+            color="#8B5CF6"
+            isToggle={true}
+            toggleValue={isDark}
+            onToggle={toggleTheme}
+          />
+          <ActionItem
+            icon="notifications"
+            title="Notification Hub"
+            color="#3B82F6"
+            onPress={() => { }}
+          />
         </View>
 
-        <Text style={[styles.sectionTitle, { marginTop: 20 }]}>History</Text>
-        <ActionItem icon="time" title="Call History" color="#3B82F6" onPress={() => router.push('/(men)/call-history')} />
-        <ActionItem icon="receipt" title="Transaction History" color="#10B981" onPress={() => router.push('/(men)/tx-history')} />
+        <Text style={styles.categoryLabel}>FINANCIAL SUITE</Text>
+        <View style={[styles.bentoGroup, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <View style={styles.paymentSelector}>
+            <TouchableOpacity
+              style={[
+                styles.payOption,
+                appUser?.paymentMethod === 'upi' && { backgroundColor: theme.bg },
+                { borderColor: appUser?.paymentMethod === 'upi' ? '#FF4D67' : 'transparent' }
+              ]}
+              onPress={() => user?.uid && updateUserProfile(user.uid, { paymentMethod: 'upi' })}
+            >
+            <MaterialCommunityIcons name="integrated-circuit-chip" size={18} color={appUser?.paymentMethod === 'upi' ? '#FF4D67' : theme.subText} />
+            <Text style={[styles.payOptionText, { color: appUser?.paymentMethod === 'upi' ? theme.text : theme.subText }]}>UPI</Text>
+          </TouchableOpacity>
 
-        <Text style={[styles.sectionTitle, { marginTop: 20 }]}>About & Support</Text>
-        <ActionItem icon="book" title="App Guide" color="#0EA5E9" onPress={() => router.push('/guide')} />
-        <ActionItem icon="help-buoy" title="Help & Support" color="#EC4899" onPress={() => router.push('/support')} />
-        <ActionItem icon="shield-checkmark" title="Privacy Policy" color="#10B981" onPress={() => router.push('/privacy')} />
+          <TouchableOpacity
+            style={[
+              styles.payOption,
+              appUser?.paymentMethod === 'card' && { backgroundColor: theme.bg },
+              { borderColor: appUser?.paymentMethod === 'card' ? '#FF4D67' : 'transparent' }
+            ]}
+            onPress={() => user?.uid && updateUserProfile(user.uid, { paymentMethod: 'card' })}
+          >
+              <Ionicons name="card" size={18} color={appUser?.paymentMethod === 'card' ? '#FF4D67' : theme.subText} />
+              <Text style={[styles.payOptionText, { color: appUser?.paymentMethod === 'card' ? theme.text : theme.subText }]}>Card</Text>
+            </TouchableOpacity>
+          </View>
+          <ActionItem icon="receipt" title="Billing History" color="#10B981" onPress={() => router.push('/(men)/tx-history')} />
+          <ActionItem icon="time" title="Interaction Logs" color="#3B82F6" onPress={() => router.push('/(men)/call-history')} isLast={true} />
+        </View>
 
-        <Text style={[styles.sectionTitle, { marginTop: 20 }]}></Text>
-        <ActionItem icon="log-out" title="Logout" color="#FF4D67" onPress={handleLogout} />
+        <Text style={styles.categoryLabel}>SUPPORT & LEGAL</Text>
+        <View style={[styles.bentoGroup, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <ActionItem icon="book" title="App Guide" color="#0EA5E9" onPress={() => router.push('/guide')} />
+          <ActionItem icon="help-buoy" title="Help Desk" color="#EC4899" onPress={() => router.push('/support')} />
+          <ActionItem icon="shield-checkmark" title="Privacy Policy" color="#10B981" onPress={() => router.push('/privacy')} />
+          <ActionItem icon="document-text" title="Terms of Service" color="#6366f1" onPress={() => router.push('/terms')} isLast={true} />
+        </View>
+
+        <TouchableOpacity
+          style={[styles.logoutWrapper, { borderColor: 'rgba(255, 77, 103, 0.3)' }]}
+          onPress={handleLogout}
+        >
+          <Ionicons name="log-out-outline" size={20} color="#FF4D67" />
+          <Text style={styles.logoutBtnText}>Switch Account or Logout</Text>
+        </TouchableOpacity>
       </View>
       <View style={{ height: 100 }} />
     </ScrollView>
@@ -198,132 +272,252 @@ export default function Profile() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f0f13',
   },
-  profileHeader: {
+  headerSection: {
+    paddingTop: 60,
+    paddingBottom: 20,
+  },
+  headerInfoCover: {
+    paddingHorizontal: 20,
+    overflow: 'hidden',
+  },
+  headerTop: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 30,
+    gap: 20,
+    marginBottom: 25,
   },
-  avatarContainer: {
+  avatarWrapper: {
     position: 'relative',
-    marginBottom: 16,
   },
   avatar: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     borderWidth: 3,
     borderColor: '#333',
   },
-  editAvatarBtn: {
+  membershipBadgeWrapper: {
     position: 'absolute',
     bottom: 0,
     right: 0,
-    backgroundColor: '#FF4D67',
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    backgroundColor: '#000',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 3,
-    borderColor: '#0f0f13',
+    borderWidth: 2,
+    borderColor: '#D4AF37',
+  },
+  nameSection: {
+    flex: 1,
+  },
+  levelRow: {
+    marginBottom: 8,
+  },
+  statusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 10,
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  statusText: {
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1,
   },
   name: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#fff',
-    marginBottom: 4,
+    fontSize: 24,
+    fontWeight: '900',
+    marginBottom: 2,
+    letterSpacing: -0.5,
   },
   username: {
-    fontSize: 16,
-    color: '#a0a0a0',
-  },
-  goldBanner: {
-    marginHorizontal: 20,
-    borderRadius: 20,
-    padding: 20,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  goldBannerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 15,
-  },
-  goldTitle: {
-    color: '#000',
-    fontSize: 20,
-    fontWeight: '800',
-  },
-  goldSub: {
-    color: 'rgba(0,0,0,0.7)',
     fontSize: 14,
     fontWeight: '600',
   },
-  goldBtn: {
-    backgroundColor: '#000',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+  statsBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 15,
+    backgroundColor: 'rgba(255,255,255,0.03)',
     borderRadius: 20,
+    marginTop: 10,
   },
-  goldBtnText: {
-    color: '#FFD700',
+  statItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: 18,
     fontWeight: '800',
+    marginBottom: 2,
+  },
+  statLabel: {
+    fontSize: 10,
+    color: '#666',
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  statDivider: {
+    width: 1,
+    height: '60%',
+    alignSelf: 'center',
+    opacity: 0.1,
+  },
+  cardContainer: {
+    marginHorizontal: 20,
+    marginBottom: 30,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  goldCard: {
+    borderRadius: 24,
+    padding: 24,
+    minHeight: 180,
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.2)',
+  },
+  cardPattern: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  cardBrand: {
+    color: '#D4AF37',
     fontSize: 14,
+    fontWeight: '900',
+    letterSpacing: 2,
+  },
+  cardType: {
+    color: '#888',
+    fontSize: 10,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  cardMain: {
+    marginVertical: 15,
+  },
+  balanceLabel: {
+    color: '#666',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1,
+    marginBottom: 4,
+  },
+  balanceRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 8,
+  },
+  balanceValue: {
+    color: '#fff',
+    fontSize: 36,
+    fontWeight: '900',
+    letterSpacing: -1,
+  },
+  balanceUnit: {
+    color: '#D4AF37',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  cardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  cardHolder: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+  topUpBtn: {
+    backgroundColor: '#D4AF37',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 12,
+    gap: 8,
+  },
+  topUpText: {
+    color: '#000',
+    fontWeight: '900',
+    fontSize: 11,
   },
   carouselContainer: {
-    marginBottom: 30,
+    marginBottom: 35,
   },
   carouselCard: {
-    width: width * 0.8,
-    backgroundColor: '#1E1E24',
-    borderRadius: 16,
+    width: width * 0.75,
+    borderRadius: 20,
     padding: 20,
     marginRight: 15,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
     borderWidth: 1,
-    borderColor: '#333',
+  },
+  carouselIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 15,
+    backgroundColor: 'rgba(255, 77, 103, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   carouselText: {
     flex: 1,
   },
   carouselTitle: {
-    color: '#fff',
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '800',
     marginBottom: 4,
   },
   carouselDesc: {
-    color: '#a0a0a0',
     fontSize: 12,
     lineHeight: 18,
+    fontWeight: '500',
   },
   actionSection: {
     paddingHorizontal: 20,
     paddingBottom: 40,
   },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+  categoryLabel: {
+    fontSize: 11,
+    fontWeight: '900',
     color: '#666',
     marginBottom: 12,
-    marginLeft: 4,
+    marginLeft: 8,
+    letterSpacing: 2,
+  },
+  bentoGroup: {
+    borderRadius: 24,
+    borderWidth: 1,
+    overflow: 'hidden',
+    marginBottom: 25,
   },
   actionItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1E1E24',
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 10,
+    padding: 18,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.03)',
   },
   iconBox: {
-    width: 40,
-    height: 40,
+    width: 42,
+    height: 42,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
@@ -331,31 +525,49 @@ const styles = StyleSheet.create({
   },
   actionTitle: {
     flex: 1,
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
   },
   rightText: {
-    color: '#FFD700',
-    fontWeight: '700',
+    color: '#D4AF37',
+    fontWeight: '800',
+    fontSize: 12,
     marginRight: 10,
   },
-  paymentPreference: {
+  paymentSelector: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 10,
+    padding: 10,
+    gap: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.03)',
   },
-  payBtn: {
+  payOption: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: 16,
+    paddingVertical: 12,
+    borderRadius: 15,
     borderWidth: 1.5,
     gap: 8,
   },
-  payBtnText: {
+  payOptionText: {
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  logoutWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    gap: 12,
+    marginTop: 10,
+  },
+  logoutBtnText: {
+    color: '#FF4D67',
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '800',
   },
 });

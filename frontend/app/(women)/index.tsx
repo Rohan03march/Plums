@@ -1,28 +1,28 @@
-import { useState, useCallback, useEffect } from 'react';
-import { View, Text, StyleSheet, Switch, ScrollView, TouchableOpacity, Dimensions, RefreshControl, Platform } from 'react-native';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, Switch, ScrollView, TouchableOpacity, Dimensions, RefreshControl, Platform, ActivityIndicator, FlatList } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import Animated, { 
-  FadeInDown, 
-  FadeInRight, 
-  useSharedValue, 
-  useAnimatedStyle, 
-  withSpring, 
-  withTiming, 
-  interpolateColor 
+import Animated, {
+  FadeInDown,
+  FadeInRight,
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  interpolateColor
 } from 'react-native-reanimated';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
-import { updateUserPresence, getAvatarSource, migrateUserRupeeBalance, subscribeToPendingPayout } from '../../services/firebaseService';
+import { updateUserPresence, getAvatarSource, migrateUserRupeeBalance, subscribeToPendingPayout, moveTodayEarningsToBalance, getEarningsByPeriod, getEarningsBreakdownByPeriod } from '../../services/firebaseService';
 
 const { width } = Dimensions.get('window');
 
 const SAFETY_TIPS = [
-  { id: '1', title: 'Privacy First', desc: 'Secure your personal details and location.', icon: 'shield-checkmark' as const },
-  { id: '2', title: 'Stay Empowered', desc: 'You control every interaction and call.', icon: 'hand-left' as const },
-  { id: '3', title: 'Abuse Protocol', desc: 'One-tap block for disrespectful users.', icon: 'warning' as const },
+  { id: '1', title: 'Privacy First', desc: 'Secure your personal details and location.', icon: 'person-circle' as const },
+  { id: '2', title: 'Stay Empowered', desc: 'You control every interaction and call.', icon: 'accessibility' as const },
+  { id: '3', title: 'Abuse Protocol', desc: 'One-tap block for disrespectful users.', icon: 'person-remove' as const },
 ];
 
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
@@ -33,6 +33,34 @@ export default function WomenHome() {
   const { appUser, user, loading } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   const [isPayoutPending, setIsPayoutPending] = useState(false);
+
+  // Period Selection States
+  const [selectedPeriod, setSelectedPeriod] = useState<'today' | 'yesterday' | 'week' | 'lifetime'>('today');
+  const [isPeriodDropdownOpen, setIsPeriodDropdownOpen] = useState(false);
+  const [periodEarnings, setPeriodEarnings] = useState<number>(0);
+  const [periodBreakdown, setPeriodBreakdown] = useState({ audio: 0, video: 0, gift: 0 });
+
+  // Safety Carousel States
+  const flatListRef = useRef<FlatList>(null);
+  const [safetyIndex, setSafetyIndex] = useState(0);
+
+  // Auto-scroll Security Guide
+  useEffect(() => {
+    if (SAFETY_TIPS.length <= 1) return;
+
+    const timer = setInterval(() => {
+      setSafetyIndex((prev) => {
+        const next = (prev + 1) % SAFETY_TIPS.length;
+        flatListRef.current?.scrollToIndex({
+          index: next,
+          animated: true,
+        });
+        return next;
+      });
+    }, 4000);
+
+    return () => clearInterval(timer);
+  }, []);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -52,8 +80,48 @@ export default function WomenHome() {
       setIsPayoutPending(pending);
     });
 
+    // 24-hour reset logic for today's earnings
+    const checkAndResetEarnings = async () => {
+      if (appUser && appUser.role === 'woman') {
+        const lastReset = appUser.lastResetTime || 0;
+        const now = Date.now();
+        const twentyFourHours = 24 * 60 * 60 * 1000;
+
+        if (now - lastReset >= twentyFourHours) {
+          await moveTodayEarningsToBalance(appUser.id, appUser.todayEarnings || 0);
+        }
+      }
+    };
+    checkAndResetEarnings();
+
     return () => unsubscribePayout();
   }, [loading, user, appUser]);
+
+  // Fetch earnings for period
+  useEffect(() => {
+    if (!user || !appUser) return;
+
+    const fetchPeriodData = async () => {
+      if (selectedPeriod === 'lifetime') {
+        setPeriodEarnings(appUser.allTimeEarnings || 0);
+        setPeriodBreakdown({
+          audio: appUser.audioEarnings || 0,
+          video: appUser.videoEarnings || 0,
+          gift: appUser.giftEarnings || 0
+        });
+      } else {
+        const breakdown = await getEarningsBreakdownByPeriod(user.uid, selectedPeriod);
+        setPeriodEarnings(breakdown.total);
+        setPeriodBreakdown({
+          audio: breakdown.audio,
+          video: breakdown.video,
+          gift: breakdown.gift
+        });
+      }
+    };
+
+    fetchPeriodData();
+  }, [selectedPeriod, user, appUser?.audioEarnings, appUser?.videoEarnings, appUser?.giftEarnings, appUser?.allTimeEarnings, appUser?.todayEarnings]);
 
   const handleAudioToggle = async (value: boolean) => {
     if (!user) return;
@@ -101,7 +169,7 @@ export default function WomenHome() {
         }
       >
         {/* Header Section */}
-        <Animated.View 
+        <Animated.View
           entering={FadeInDown.duration(800).springify()}
           style={[styles.header, { backgroundColor: colors.card, borderColor: colors.border }]}
         >
@@ -120,20 +188,133 @@ export default function WomenHome() {
               <Text style={[styles.userName, { color: colors.text }]}>{appUser?.displayName?.split(' ')[0] || 'Creator'} ✨</Text>
             </View>
           </View>
-          <TouchableOpacity 
-            onPress={() => router.push('/(women)/profile')}
-            style={[styles.settingsBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}
+          <TouchableOpacity
+            onPress={() => router.push('/(women)/withdrawal')}
+            style={[styles.coinBalanceBtn, { backgroundColor: isDark ? 'rgba(255,215,0,0.1)' : 'rgba(255,215,0,0.15)' }]}
           >
-            <Ionicons name="settings-sharp" size={20} color={colors.text} />
+            <FontAwesome5 name="coins" size={14} color="#FFD700" />
+            <Text style={[styles.coinBalanceText, { color: isDark ? '#FFD700' : '#D97706' }]}>
+              {appUser?.coins?.toLocaleString() || '0'}
+            </Text>
           </TouchableOpacity>
         </Animated.View>
 
+
+        {/* Premium Revenue Card */}
+        <Animated.View entering={FadeInDown.delay(400).duration(800).springify()} style={{ zIndex: 1000 }}>
+          <LinearGradient
+            colors={isDark ? ['#1E1E24', '#0f0f13'] : ['#ffffff', '#f8f9fa']}
+            style={[styles.revenueCard, { borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}
+          >
+            <View style={styles.revHeaderContent}>
+              <View style={styles.revHeaderLeft}>
+                <View style={styles.periodTitleContainer}>
+                  <Text style={[styles.revTitle, { letterSpacing: 1.5, textTransform: 'uppercase', opacity: 0.6 }]}>
+                    {selectedPeriod === 'today' ? "Today" :
+                      selectedPeriod === 'yesterday' ? "Yesterday" :
+                        selectedPeriod === 'week' ? "Weekly" : "Lifetime"}
+                  </Text>
+                  <View style={styles.periodDot} />
+                </View>
+
+                <View style={styles.todayEarningMain}>
+                  <View style={styles.coinGlowContainer}>
+                    <FontAwesome5 name="coins" size={28} color="#FFD700" />
+                  </View>
+                  <Text style={[styles.revMainLarge, { color: colors.text }]}>
+                    {periodEarnings.toLocaleString() || '0'}
+                  </Text>
+                  <Text style={styles.goldTextLabel}></Text>
+                </View>
+              </View>
+
+              {/* Period Selector Button */}
+              <View style={styles.periodSelectorWrapper}>
+                <TouchableOpacity
+                  onPress={() => setIsPeriodDropdownOpen(!isPeriodDropdownOpen)}
+                  style={[styles.periodBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }]}
+                >
+                  <Text style={[styles.periodBtnText, { color: colors.subText }]}>
+                    {selectedPeriod.charAt(0).toUpperCase() + selectedPeriod.slice(1)}
+                  </Text>
+                  <Ionicons name={isPeriodDropdownOpen ? "chevron-up" : "chevron-down"} size={14} color={colors.subText} />
+                </TouchableOpacity>
+
+                {isPeriodDropdownOpen && (
+                  <Animated.View
+                    entering={FadeInRight.duration(200)}
+                    style={[styles.dropdownMenu, { backgroundColor: colors.card, borderColor: colors.border }]}
+                  >
+                    {[
+                      { id: 'today', label: 'Today' },
+                      { id: 'yesterday', label: 'Yesterday' },
+                      { id: 'week', label: 'Weekly' },
+                      { id: 'lifetime', label: 'Lifetime' }
+                    ].map((period) => (
+                      <TouchableOpacity
+                        key={period.id}
+                        onPress={() => {
+                          setSelectedPeriod(period.id as any);
+                          setIsPeriodDropdownOpen(false);
+                        }}
+                        style={[
+                          styles.dropdownItem,
+                          selectedPeriod === period.id && { backgroundColor: colors.primary + '10' }
+                        ]}
+                      >
+                        <Text style={[
+                          styles.dropdownItemText,
+                          { color: selectedPeriod === period.id ? colors.primary : colors.text }
+                        ]}>
+                          {period.label}
+                        </Text>
+                        {selectedPeriod === period.id && (
+                          <Ionicons name="checkmark" size={14} color={colors.primary} />
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                  </Animated.View>
+                )}
+              </View>
+            </View>
+
+            {isPayoutPending && (
+              <View style={styles.payoutNotice}>
+                <Ionicons name="information-circle" size={14} color="#FFD700" />
+                <Text style={styles.payoutNoticeText}>
+                  Your previous request is being finalized.
+                </Text>
+              </View>
+            )}
+
+            <View style={styles.earningsGrid}>
+              {(() => {
+                const categories = [
+                  { label: 'Audio', icon: 'mic', coins: periodBreakdown.audio, rupees: periodBreakdown.audio * 0.14, color: '#FF4D67', bg: 'rgba(255, 77, 103, 0.05)' },
+                  { label: 'Video', icon: 'videocam', coins: periodBreakdown.video, rupees: periodBreakdown.video * 0.10, color: '#8E44AD', bg: 'rgba(142, 68, 173, 0.05)' },
+                  { label: 'Gifts', icon: 'gift', coins: periodBreakdown.gift, rupees: periodBreakdown.gift * 0.10, color: '#F39C12', bg: 'rgba(243, 156, 18, 0.05)' }
+                ];
+
+                return categories.map((cat, idx) => (
+                  <View key={idx} style={[styles.earningCard, { backgroundColor: cat.bg }]}>
+                    <View style={styles.earningHeader}>
+                      <Ionicons name={cat.icon as any} size={14} color={cat.color} />
+                      <Text style={[styles.earningLabel, { color: cat.color }]}>{cat.label}</Text>
+                    </View>
+                    <Text style={[styles.earningValueINR, { color: colors.text }]}>₹{cat.rupees.toFixed(0)}</Text>
+                    <Text style={styles.earningValueCoins}>{cat.coins.toLocaleString()} Gold</Text>
+                  </View>
+                ));
+              })()}
+            </View>
+          </LinearGradient>
+        </Animated.View>
+
         {/* Live Status Control - Glassmorphism style */}
-        <Animated.View 
+        <Animated.View
           entering={FadeInDown.delay(200).duration(800).springify()}
           style={styles.controlCenter}
         >
-          <Text style={[styles.sectionHeading, { color: colors.text }]}>Broadcasting Control</Text>
           <View style={styles.statusRow}>
             {/* Audio Service */}
             <View style={[styles.statusCard, { backgroundColor: isAudioOnline ? 'rgba(255, 77, 103, 0.12)' : colors.card, borderColor: isAudioOnline ? colors.primary : colors.border }]}>
@@ -152,10 +333,10 @@ export default function WomenHome() {
               <Text style={[styles.statusSub, { color: isAudioOnline ? colors.primary : colors.subText }]}>{isAudioOnline ? 'Waitng for calls...' : 'Offline'}</Text>
               {isAudioOnline && (
                 <View style={styles.ratesWrapper}>
-                  <View style={[styles.miniRate, { 
-                    backgroundColor: isDark ? 'rgba(255, 215, 0, 0.15)' : 'rgba(245, 158, 11, 0.1)', 
-                    flexDirection: 'row', 
-                    alignItems: 'center', 
+                  <View style={[styles.miniRate, {
+                    backgroundColor: isDark ? 'rgba(255, 215, 0, 0.15)' : 'rgba(245, 158, 11, 0.1)',
+                    flexDirection: 'row',
+                    alignItems: 'center',
                     gap: 4,
                     borderColor: isDark ? 'transparent' : 'rgba(245, 158, 11, 0.2)',
                     borderWidth: isDark ? 0 : 1
@@ -187,10 +368,10 @@ export default function WomenHome() {
               <Text style={[styles.statusSub, { color: isVideoOnline ? '#9C27B0' : colors.subText }]}>{isVideoOnline ? 'Live on Feed' : 'Offline'}</Text>
               {isVideoOnline && (
                 <View style={styles.ratesWrapper}>
-                  <View style={[styles.miniRate, { 
-                    backgroundColor: isDark ? 'rgba(255, 215, 0, 0.15)' : 'rgba(245, 158, 11, 0.1)', 
-                    flexDirection: 'row', 
-                    alignItems: 'center', 
+                  <View style={[styles.miniRate, {
+                    backgroundColor: isDark ? 'rgba(255, 215, 0, 0.15)' : 'rgba(245, 158, 11, 0.1)',
+                    flexDirection: 'row',
+                    alignItems: 'center',
                     gap: 4,
                     borderColor: isDark ? 'transparent' : 'rgba(245, 158, 11, 0.2)',
                     borderWidth: isDark ? 0 : 1
@@ -207,177 +388,43 @@ export default function WomenHome() {
           </View>
         </Animated.View>
 
-        {/* Premium Revenue Card */}
-        <Animated.View entering={FadeInDown.delay(400).duration(800).springify()}>
-          <LinearGradient
-            colors={isDark ? ['#1E1E24', '#0f0f13'] : ['#ffffff', '#f8f9fa']}
-            style={[styles.revenueCard, { borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}
-          >
-            <View style={styles.revHeader}>
-              <View>
-                <Text style={styles.revTitle}>Total Revenue</Text>
-                {(() => {
-                  const totalEarned = (appUser?.audioEarnings || 0) + (appUser?.videoEarnings || 0) + (appUser?.giftEarnings || 0);
-                  const factor = totalEarned > 0 ? Math.min(1, (appUser?.coins || 0) / totalEarned) : 0;
-                  const audioINR = (appUser?.audioEarnings || 0) * factor * 0.14;
-                  const videoINR = (appUser?.videoEarnings || 0) * factor * 0.10;
-                  const giftINR = (appUser?.giftEarnings || 0) * factor * 0.10;
-                  return (
-                    <Text style={[styles.revMain, { color: colors.text }]}>₹{(audioINR + videoINR + giftINR).toFixed(2)}</Text>
-                  );
-                })()}
-              </View>
-              <TouchableOpacity 
-                style={[styles.withdrawAction, isPayoutPending && { opacity: 0.5 }]}
-                onPress={() => !isPayoutPending && router.push('/(women)/withdrawal')}
-                disabled={isPayoutPending}
-              >
-                <LinearGradient
-                  colors={isPayoutPending ? ['#8E8E93', '#AEAEB2'] : ['#FF4D67', '#FF7E8D']}
-                  style={styles.withdrawBtnGrad}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                >
-                  <Text style={styles.withdrawBtnLabel}>
-                    {isPayoutPending ? 'Processing' : 'Withdraw'}
-                  </Text>
-                  <Ionicons 
-                    name={isPayoutPending ? "time-outline" : "chevron-forward"} 
-                    size={16} 
-                    color="#fff" 
-                  />
-                </LinearGradient>
-              </TouchableOpacity>
-            </View>
 
-            {isPayoutPending && (
-              <View style={styles.payoutNotice}>
-                <Ionicons name="information-circle" size={14} color="#FFD700" />
-                <Text style={styles.payoutNoticeText}>
-                  Your previous request is being finalized.
-                </Text>
-              </View>
-            )}
-
-            <View style={styles.revDivider} />
-
-            <View style={styles.revStats}>
-              <View style={styles.revItem}>
-                <View style={[styles.coinCircle, { backgroundColor: 'rgba(255, 215, 0, 0.1)' }]}>
-                  <FontAwesome5 name="coins" size={12} color="#FFD700" />
-                </View>
-                <View>
-                  <Text style={styles.revItemLabel}>Balance</Text>
-                  <Text style={[styles.revItemValue, { color: colors.text }]}>{appUser?.coins?.toLocaleString() || '0'}</Text>
-                </View>
-              </View>
-              <View style={styles.revItem}>
-                <View style={[styles.coinCircle, { backgroundColor: 'rgba(76, 175, 80, 0.1)' }]}>
-                  <Ionicons name="trending-up" size={14} color="#4CAF50" />
-                </View>
-                <View>
-                  <Text style={styles.revItemLabel}>Lifetime</Text>
-                  <Text style={[styles.revItemValue, { color: colors.text }]}>₹{(appUser?.allTimeEarnings || 0).toLocaleString()}</Text>
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.earningsGrid}>
-              {(() => {
-                const totalEarned = (appUser?.audioEarnings || 0) + (appUser?.videoEarnings || 0) + (appUser?.giftEarnings || 0);
-                const factor = totalEarned > 0 ? Math.min(1, (appUser?.coins || 0) / totalEarned) : 0;
-                
-                const categories = [
-                  { 
-                    label: 'Audio', 
-                    icon: 'mic', 
-                    coins: appUser?.audioEarnings || 0, 
-                    rupees: (appUser?.audioEarnings || 0) * factor * 0.14,
-                    color: '#FF4D67',
-                    bg: 'rgba(255, 77, 103, 0.08)'
-                  },
-                  { 
-                    label: 'Video', 
-                    icon: 'videocam', 
-                    coins: appUser?.videoEarnings || 0, 
-                    rupees: (appUser?.videoEarnings || 0) * factor * 0.10,
-                    color: '#8E44AD',
-                    bg: 'rgba(142, 68, 173, 0.08)'
-                  },
-                  { 
-                    label: 'Gifts', 
-                    icon: 'gift', 
-                    coins: appUser?.giftEarnings || 0, 
-                    rupees: (appUser?.giftEarnings || 0) * factor * 0.10,
-                    color: '#F39C12',
-                    bg: 'rgba(243, 156, 18, 0.08)'
-                  }
-                ];
-
-                return categories.map((cat, idx) => (
-                  <View key={idx} style={[styles.earningCard, { backgroundColor: cat.bg }]}>
-                    <View style={styles.earningHeader}>
-                      <Ionicons name={cat.icon as any} size={14} color={cat.color} />
-                      <Text style={[styles.earningLabel, { color: cat.color }]}>{cat.label}</Text>
-                    </View>
-                    <Text style={[styles.earningValueINR, { color: colors.text }]}>₹{cat.rupees.toFixed(2)}</Text>
-                    <Text style={styles.earningValueCoins}>{cat.coins.toLocaleString()} Gold</Text>
-                  </View>
-                ));
-              })()}
-            </View>
-          </LinearGradient>
-        </Animated.View>
-
-        {/* Analytics Grid */}
-        <View style={styles.analyticsSection}>
-          <Text style={[styles.sectionHeading, { color: colors.text }]}>Performance Insights</Text>
-          <View style={styles.analyticsGrid}>
-            {[
-              { label: 'Rating', value: appUser?.rating?.toFixed(1) || '0.0', icon: 'star', color: '#FFD700', bg: 'rgba(255, 215, 0, 0.1)' },
-              { label: 'Total Calls', value: appUser?.totalCalls || '0', icon: 'call', color: '#4CAF50', bg: 'rgba(76, 175, 80, 0.1)', route: '/(women)/call-history' },
-              { label: 'Talk Time', value: `${appUser?.talkTime || '0'}m`, icon: 'time', color: '#2196F3', bg: 'rgba(33, 150, 243, 0.1)' },
-            ].map((stat, i) => (
-              <AnimatedTouchableOpacity
-                key={stat.label}
-                entering={FadeInRight.delay(600 + (i * 100)).duration(600).springify()}
-                onPress={() => stat.route && router.push(stat.route as any)}
-                activeOpacity={0.7}
-                style={[styles.analyticsCard, { backgroundColor: colors.card, borderColor: colors.border }]}
-              >
-                <View style={[styles.analyticsIcon, { backgroundColor: stat.bg }]}>
-                  <Ionicons name={stat.icon as any} size={18} color={stat.color} />
-                </View>
-                <Text style={[styles.analyticsValue, { color: colors.text }]}>{stat.value}</Text>
-                <Text style={styles.analyticsLabel}>{stat.label}</Text>
-              </AnimatedTouchableOpacity>
-            ))}
-          </View>
-        </View>
 
         {/* Safety Carousel */}
-        <Animated.View 
+        <Animated.View
           entering={FadeInDown.delay(900).duration(800)}
           style={styles.safetyArea}
         >
-          <Text style={[styles.sectionHeading, { color: colors.text, marginBottom: 12 }]}>Security Guide</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
-            {SAFETY_TIPS.map((tip) => (
-              <LinearGradient
-                key={tip.id}
-                colors={isDark ? ['#1e1e24', '#25252d'] : ['#ffffff', '#f0f0f5']}
-                style={styles.tipCard}
-              >
-                <View style={styles.tipIconWrap}>
-                   <Ionicons name={tip.icon} size={20} color={colors.primary} />
-                </View>
-                <View style={styles.tipText}>
-                  <Text style={[styles.tipTitle, { color: colors.text }]}>{tip.title}</Text>
-                  <Text style={[styles.tipDesc, { color: colors.subText }]}>{tip.desc}</Text>
-                </View>
-              </LinearGradient>
-            ))}
-          </ScrollView>
+          <Text style={[styles.sectionHeading, { color: colors.text, marginBottom: 16, paddingHorizontal: 20 }]}>Security Guide</Text>
+          <FlatList
+            ref={flatListRef}
+            data={SAFETY_TIPS}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            keyExtractor={(item: any) => item.id}
+            onMomentumScrollEnd={(e: any) => {
+              const x = e.nativeEvent.contentOffset.x;
+              const index = Math.round(x / (width - 40));
+              setSafetyIndex(index);
+            }}
+            renderItem={({ item: tip }: { item: any }) => (
+              <View style={{ width: width - 40, paddingHorizontal: 0 }}>
+                <LinearGradient
+                  colors={isDark ? ['#1e1e24', '#25252d'] : ['#ffffff', '#f0f0f5']}
+                  style={styles.tipCard}
+                >
+                  <View style={styles.tipIconWrap}>
+                    <Ionicons name={tip.icon} size={22} color={colors.primary} />
+                  </View>
+                  <View style={styles.tipText}>
+                    <Text style={[styles.tipTitle, { color: colors.text }]}>{tip.title}</Text>
+                    <Text style={[styles.tipDesc, { color: colors.subText }]}>{tip.desc}</Text>
+                  </View>
+                </LinearGradient>
+              </View>
+            )}
+          />
         </Animated.View>
 
       </ScrollView>
@@ -445,12 +492,115 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '900',
   },
-  settingsBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
+  coinBalanceBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 6,
+  },
+  coinBalanceText: {
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  revHeaderLeft: {
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    paddingTop: 5,
+    paddingBottom: 15,
+    flex: 1,
+  },
+  revHeaderContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  periodSelectorWrapper: {
+    position: 'relative',
+    marginTop: 5,
+  },
+  periodBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(160,160,160,0.1)',
+  },
+  periodBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  dropdownMenu: {
+    position: 'absolute',
+    top: 40,
+    right: 0,
+    width: 140,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 10,
+    zIndex: 9999,
+  },
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  dropdownItemText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  periodTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 0,
+    gap: 8,
+  },
+  periodDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#FF4D67',
+    shadowColor: '#FF4D67',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 5,
+  },
+  todayEarningMain: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    gap: 12,
+  },
+  coinGlowContainer: {
+    shadowColor: '#FFD700',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  revMainLarge: {
+    fontSize: 52,
+    fontWeight: '900',
+    letterSpacing: -1.5,
+  },
+  goldTextLabel: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#FFD700',
+    marginTop: 12,
+    letterSpacing: 1,
   },
   controlCenter: {
     marginBottom: 24,
@@ -532,33 +682,12 @@ const styles = StyleSheet.create({
     color: '#a0a0a0',
     fontSize: 13,
     fontWeight: '600',
-    marginBottom: 6,
+    marginBottom: 3,
   },
   revMain: {
     fontSize: 34,
     fontWeight: '900',
     letterSpacing: -0.5,
-  },
-  withdrawAction: {
-    borderRadius: 20,
-    overflow: 'hidden',
-  },
-  withdrawBtnGrad: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    gap: 4,
-  },
-  withdrawBtnLabel: {
-    color: '#fff',
-    fontWeight: '800',
-    fontSize: 13,
-  },
-  revDivider: {
-    height: 1,
-    backgroundColor: 'rgba(160,160,160,0.1)',
-    marginBottom: 20,
   },
   revStats: {
     flexDirection: 'row',
@@ -605,11 +734,8 @@ const styles = StyleSheet.create({
   earningsGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: 4,
-    marginTop: 16,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(160,160,160,0.05)',
+    paddingHorizontal: 0,
+    marginTop: 20,
   },
   earningCard: {
     flex: 1,
@@ -631,13 +757,13 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   earningValueINR: {
-    fontSize: 13,
-    fontWeight: '800',
+    fontSize: 14,
+    fontWeight: '900',
   },
   earningValueCoins: {
-    fontSize: 9,
+    fontSize: 10,
     color: '#8E8E93',
-    fontWeight: '500',
+    fontWeight: '600',
     marginTop: 1,
   },
   analyticsSection: {
@@ -681,31 +807,34 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   tipCard: {
-    width: 200,
-    padding: 16,
+    width: '100%',
+    padding: 20,
     borderRadius: 24,
-    gap: 12,
+    gap: 14,
     borderWidth: 1,
     borderColor: 'rgba(160,160,160,0.1)',
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   tipIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     backgroundColor: 'rgba(255, 77, 103, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   tipText: {
+    flex: 1,
     gap: 4,
   },
   tipTitle: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '800',
   },
   tipDesc: {
-    fontSize: 11,
-    lineHeight: 16,
+    fontSize: 12,
+    lineHeight: 18,
   }
 });
 

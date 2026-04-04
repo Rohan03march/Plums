@@ -40,6 +40,9 @@ export interface User {
   sumRatings?: number;
   totalRatings?: number;
   rupeeBalance?: number;
+  todayEarnings?: number;
+  lastResetTime?: number;
+  giftSent?: number;
 }
 
 export const AVATAR_MAPPING: Record<string, any> = {
@@ -59,20 +62,58 @@ export const AVATAR_MAPPING: Record<string, any> = {
   'girl_7': require('../assets/images/3d_avatar_7.jpg'),
 };
 
-export const getAvatarSource = (avatarId: string | undefined, defaultType: 'man' | 'woman') => {
-  if (avatarId && AVATAR_MAPPING[avatarId]) {
-    return AVATAR_MAPPING[avatarId];
+/**
+ * Universal safe wrapper for async operations.
+ * Prevents unhandled rejections from crashing the app.
+ */
+export async function safeExecute<T>(
+  promise: Promise<T>, 
+  fallback: T | null = null,
+  operationName: string = 'Operation'
+): Promise<T | null> {
+  try {
+    return await promise;
+  } catch (error) {
+    console.error(`[Zero-Crash] ${operationName} failed:`, error);
+    return fallback;
   }
-  // Try to see if it's already a URI (legacy)
-  // We only allow http URLs for cross-device persistence. 
-  // Local 'file://' URIs are ignored to trigger the fallback.
-  if (avatarId?.startsWith('http')) {
-    return { uri: avatarId };
+}
+
+  
+/**
+ * Hardened avatar source resolver.
+ * Ensures a valid source is ALWAYS returned, regardless of input quality.
+ */
+export const getAvatarSource = (avatar: string | null | undefined, gender: 'man' | 'woman' | string = 'woman') => {
+  try {
+    // 1. Handle mapping-based assets (girl_1, boy_2, etc.)
+    if (avatar && AVATAR_MAPPING[avatar]) {
+      return AVATAR_MAPPING[avatar];
+    }
+
+    // 2. Handle remote URLs
+    if (typeof avatar === 'string' && (avatar.startsWith('http') || avatar.startsWith('https'))) {
+      return { uri: avatar };
+    }
+
+    // 3. Handle base64 or file paths
+    if (typeof avatar === 'string' && (avatar.startsWith('data:') || avatar.startsWith('file:'))) {
+      return { uri: avatar };
+    }
+
+    // 4. Handle known named assets (frequent fallback)
+    if (avatar === 'hypernow.png') return require('../assets/images/hypernow.png');
+
+    // 5. Gender-based default fallback
+    if (gender === 'man') {
+      return require('../assets/images/3d_boy_1.jpg');
+    }
+    
+    return require('../assets/images/3d_avatar_1.jpg');
+  } catch (e) {
+    console.error('[Zero-Crash] getAvatarSource failed, using brute-force fallback:', e);
+    return require('../assets/images/3d_avatar_1.jpg');
   }
-  // Default fallbacks
-  return defaultType === 'man' 
-    ? require('../assets/images/3d_boy_1.jpg') 
-    : require('../assets/images/3d_avatar_1.jpg');
 };
 
 export interface Transaction {
@@ -626,7 +667,7 @@ export const executeCallTransfer = async (
       const inrEarned = normalizedType === 'audio' ? (amount * 0.14) : (amount * 0.10);
       
       const receiverUpdates: any = {
-        coins: increment(amount),
+        todayEarnings: increment(amount),
         allTimeEarnings: increment(amount),
         rupeeBalance: increment(inrEarned)
       };
@@ -683,9 +724,12 @@ export const sendGift = async (senderId: string, receiverId: string, coins: numb
       if (senderCoins < coins) throw "Insufficient balance";
 
       // 1. Update Balances
-      transaction.update(senderRef, { coins: increment(-coins) });
+      transaction.update(senderRef, { 
+        coins: increment(-coins),
+        giftSent: increment(1)
+      });
       transaction.update(receiverRef, { 
-        coins: increment(coins),
+        todayEarnings: increment(coins),
         allTimeEarnings: increment(coins),
         giftEarnings: increment(coins),
         rupeeBalance: increment(coins * 0.10)
@@ -754,5 +798,136 @@ export const updateCallSessionMeta = async (sessionId: string, meta: any) => {
   } catch (error) {
     console.error("Error updating session meta:", error);
     return false;
+  }
+};
+
+export const moveTodayEarningsToBalance = async (userId: string, todayEarnings: number) => {
+  try {
+    const userRef = doc(firebaseDb, 'Users', userId);
+    await updateDoc(userRef, {
+      coins: increment(todayEarnings),
+      todayEarnings: 0,
+      lastResetTime: Date.now()
+    });
+    console.log(`[Earning Reset] Moved ${todayEarnings} coins to main balance for ${userId}`);
+    return true;
+  } catch (error) {
+    console.error("Error moving today's earnings:", error);
+    return false;
+  }
+};
+
+export const getEarningsByPeriod = async (userId: string, period: 'today' | 'yesterday' | 'week' | 'month') => {
+  try {
+    const now = new Date();
+    let startDate: Date;
+    let endDate: Date;
+
+    if (period === 'today') {
+      startDate = new Date();
+      startDate.setHours(0, 0, 0, 0);
+      endDate = now;
+    } else if (period === 'yesterday') {
+      startDate = new Date();
+      startDate.setDate(now.getDate() - 1);
+      startDate.setHours(0, 0, 0, 0);
+      
+      endDate = new Date();
+      endDate.setDate(now.getDate() - 1);
+      endDate.setHours(23, 59, 59, 999);
+    } else if (period === 'week') {
+      startDate = new Date();
+      startDate.setDate(now.getDate() - 7);
+      startDate.setHours(0, 0, 0, 0);
+      endDate = now;
+    } else { // month
+      startDate = new Date();
+      startDate.setMonth(now.getMonth() - 1);
+      startDate.setHours(0, 0, 0, 0);
+      endDate = now;
+    }
+
+    const q = query(
+      collection(firebaseDb, 'Transactions'),
+      where('userId', '==', userId),
+      where('type', 'in', ['call_earn', 'gift_earn']),
+      where('timestamp', '>=', Timestamp.fromDate(startDate)),
+      where('timestamp', '<=', Timestamp.fromDate(endDate))
+    );
+
+    const snapshot = await getDocs(q);
+    let total = 0;
+    snapshot.forEach(doc => {
+      total += doc.data().coins || 0;
+    });
+    return total;
+  } catch (error) {
+    console.error(`Error fetching earnings for ${period}:`, error);
+    return 0;
+  }
+};
+
+export const getEarningsBreakdownByPeriod = async (userId: string, period: 'today' | 'yesterday' | 'week' | 'month') => {
+  try {
+    const now = new Date();
+    let startDate: Date;
+    let endDate: Date;
+
+    if (period === 'today') {
+      startDate = new Date();
+      startDate.setHours(0, 0, 0, 0);
+      endDate = now;
+    } else if (period === 'yesterday') {
+      startDate = new Date();
+      startDate.setDate(now.getDate() - 1);
+      startDate.setHours(0, 0, 0, 0);
+      
+      endDate = new Date();
+      endDate.setDate(now.getDate() - 1);
+      endDate.setHours(23, 59, 59, 999);
+    } else if (period === 'week') {
+      startDate = new Date();
+      startDate.setDate(now.getDate() - 7);
+      startDate.setHours(0, 0, 0, 0);
+      endDate = now;
+    } else { // month
+      startDate = new Date();
+      startDate.setMonth(now.getMonth() - 1);
+      startDate.setHours(0, 0, 0, 0);
+      endDate = now;
+    }
+
+    const q = query(
+      collection(firebaseDb, 'Transactions'),
+      where('userId', '==', userId),
+      where('type', 'in', ['call_earn', 'gift_earn', 'gift']), // Checking 'gift' for legacy
+      where('timestamp', '>=', Timestamp.fromDate(startDate)),
+      where('timestamp', '<=', Timestamp.fromDate(endDate))
+    );
+
+    const snapshot = await getDocs(q);
+    const breakdown = { audio: 0, video: 0, gift: 0, total: 0 };
+    
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      const coins = data.coins || 0;
+      breakdown.total += coins;
+      
+      if (data.type === 'gift_earn' || data.type === 'gift') {
+        breakdown.gift += coins;
+      } else if (data.type === 'call_earn') {
+        const details = (data.details || '').toUpperCase();
+        if (details.includes('AUDIO')) {
+          breakdown.audio += coins;
+        } else {
+          breakdown.video += coins;
+        }
+      }
+    });
+    
+    return breakdown;
+  } catch (error) {
+    console.error(`Error fetching earnings breakdown for ${period}:`, error);
+    return { audio: 0, video: 0, gift: 0, total: 0 };
   }
 };

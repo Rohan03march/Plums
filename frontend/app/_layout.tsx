@@ -15,6 +15,7 @@ import { useRouter } from 'expo-router';
 import { CallProvider, useCall } from '../context/CallContext';
 import FloatingCallPreview from '../components/FloatingCallPreview';
 import RatingModal from '../components/RatingModal';
+import ErrorBoundary from '../components/ErrorBoundary';
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
@@ -83,7 +84,7 @@ function AppView({ onLayoutRootView }: { onLayoutRootView: () => Promise<void> }
   return (
     <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
       <StatusBar style={isDark ? "light" : "dark"} />
-      
+
       {RootStack}
 
       <IncomingCallModal
@@ -142,21 +143,23 @@ export default function RootLayout() {
   }, [appIsReady]);
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
-        <ThemeProvider>
-          <AuthProvider>
-            <CallProvider>
-              <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
-                {!appIsReady ? null : (
-                  <AppView onLayoutRootView={onLayoutRootView} />
-                )}
-              </View>
-            </CallProvider>
-          </AuthProvider>
-        </ThemeProvider>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <ErrorBoundary>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <SafeAreaProvider>
+          <ThemeProvider>
+            <AuthProvider>
+              <CallProvider>
+                <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
+                  {!appIsReady ? null : (
+                    <AppView onLayoutRootView={onLayoutRootView} />
+                  )}
+                </View>
+              </CallProvider>
+            </AuthProvider>
+          </ThemeProvider>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    </ErrorBoundary>
   );
 }
 

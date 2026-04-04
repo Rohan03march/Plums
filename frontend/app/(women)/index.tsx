@@ -36,7 +36,7 @@ export default function WomenHome() {
 
 
   // Period Selection States
-  const [selectedPeriod, setSelectedPeriod] = useState<'today' | 'yesterday' | 'week' | 'lifetime'>('today');
+  const [selectedPeriod, setSelectedPeriod] = useState<'current' | 'today' | 'yesterday' | 'week' | 'lifetime'>('current');
   const [isPeriodDropdownOpen, setIsPeriodDropdownOpen] = useState(false);
   const [periodEarnings, setPeriodEarnings] = useState<number>(0);
   const [periodBreakdown, setPeriodBreakdown] = useState({ audio: 0, video: 0, gift: 0 });
@@ -119,7 +119,18 @@ export default function WomenHome() {
   useEffect(() => {
     if (!appUser || appUser.role !== 'woman') return;
 
-    // Subscribe to earnings breakdown for the selected period
+    if (selectedPeriod === 'current') {
+      // Use the actual live wallet balance for the 'current' view
+      setPeriodEarnings(appUser.earningBalance || 0);
+      setPeriodBreakdown({
+        audio: appUser.audioEarnings || 0,
+        video: appUser.videoEarnings || 0,
+        gift: appUser.giftEarnings || 0
+      });
+      return;
+    }
+
+    // Subscribe to earnings breakdown for historical periods
     const unsubscribeEarnings = subscribeToEarningsBreakdown(appUser.id, selectedPeriod, (breakdown) => {
       setPeriodEarnings(breakdown.total);
       setPeriodBreakdown({
@@ -130,7 +141,7 @@ export default function WomenHome() {
     });
 
     return () => unsubscribeEarnings();
-  }, [appUser?.id, selectedPeriod]);
+  }, [appUser?.id, selectedPeriod, appUser?.earningBalance, appUser?.audioEarnings, appUser?.videoEarnings, appUser?.giftEarnings]);
 
 
   const handleAudioToggle = async (value: boolean) => {
@@ -224,9 +235,10 @@ export default function WomenHome() {
               <View style={styles.revHeaderLeft}>
                 <View style={styles.periodTitleContainer}>
                   <Text style={[styles.revTitle, { letterSpacing: 1.5, textTransform: 'uppercase', opacity: 0.6 }]}>
-                    {selectedPeriod === 'today' ? "Today" :
-                      selectedPeriod === 'yesterday' ? "Yesterday" :
-                        selectedPeriod === 'week' ? "Weekly" : "Lifetime"}
+                    {selectedPeriod === 'current' ? "Current Balance" :
+                      selectedPeriod === 'today' ? "Today" :
+                        selectedPeriod === 'yesterday' ? "Yesterday" :
+                          selectedPeriod === 'week' ? "Weekly" : "Lifetime"}
                   </Text>
                   <View style={styles.periodDot} />
                 </View>
@@ -249,7 +261,7 @@ export default function WomenHome() {
                   style={[styles.periodBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }]}
                 >
                   <Text style={[styles.periodBtnText, { color: colors.subText }]}>
-                    {selectedPeriod.charAt(0).toUpperCase() + selectedPeriod.slice(1)}
+                    {selectedPeriod === 'current' ? 'Current' : selectedPeriod.charAt(0).toUpperCase() + selectedPeriod.slice(1)}
                   </Text>
                   <Ionicons name={isPeriodDropdownOpen ? "chevron-up" : "chevron-down"} size={14} color={colors.subText} />
                 </TouchableOpacity>
@@ -260,6 +272,7 @@ export default function WomenHome() {
                     style={[styles.dropdownMenu, { backgroundColor: colors.card, borderColor: colors.border }]}
                   >
                     {[
+                      { id: 'current', label: 'Current' },
                       { id: 'today', label: 'Today' },
                       { id: 'yesterday', label: 'Yesterday' },
                       { id: 'week', label: 'Weekly' },
@@ -403,6 +416,37 @@ export default function WomenHome() {
         </Animated.View>
 
 
+
+        {/* Performance Hub */}
+        <Animated.View
+          entering={FadeInDown.delay(700).duration(800).springify()}
+          style={styles.performanceSection}
+        >
+          <Text style={[styles.sectionHeading, { color: colors.text }]}>LIVE PERFORMANCE</Text>
+          <View style={[styles.performanceCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={styles.perfItem}>
+              <View style={[styles.perfIconBox, { backgroundColor: 'rgba(76, 175, 80, 0.1)' }]}>
+                <Ionicons name="call" size={20} color="#4CAF50" />
+              </View>
+              <View style={styles.perfContent}>
+                <Text style={[styles.perfValue, { color: colors.text }]}>{appUser?.totalCalls || '0'}</Text>
+                <Text style={[styles.perfLabel, { color: colors.subText }]}>Total Calls</Text>
+              </View>
+            </View>
+            
+            <View style={[styles.perfDivider, { backgroundColor: colors.border }]} />
+            
+            <View style={styles.perfItem}>
+              <View style={[styles.perfIconBox, { backgroundColor: 'rgba(33, 150, 243, 0.1)' }]}>
+                <Ionicons name="time" size={20} color="#2196F3" />
+              </View>
+              <View style={styles.perfContent}>
+                <Text style={[styles.perfValue, { color: colors.text }]}>{appUser?.talkTime || '0'}m</Text>
+                <Text style={[styles.perfLabel, { color: colors.subText }]}>Talk Time</Text>
+              </View>
+            </View>
+          </View>
+        </Animated.View>
 
         {/* Safety Carousel */}
         <Animated.View
@@ -819,6 +863,53 @@ const styles = StyleSheet.create({
   },
   safetyArea: {
     marginBottom: 20,
+  },
+  performanceSection: {
+    marginBottom: 24,
+  },
+  performanceCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 20,
+    borderRadius: 24,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  perfItem: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  perfIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  perfContent: {
+    gap: 2,
+  },
+  perfValue: {
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  perfLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  perfDivider: {
+    width: 1,
+    height: 30,
+    marginHorizontal: 15,
+    opacity: 0.1,
   },
   tipCard: {
     width: '100%',

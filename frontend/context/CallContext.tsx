@@ -228,15 +228,16 @@ export const CallProvider = ({ children }: { children?: React.ReactNode }) => {
       const hasStarted = hasCallStartedRef.current;
 
       await updateCallSession(sessionId, 'ended');
-
-      if (role === 'caller' && hasStarted) {
+      
+      // Let BOTH sides attempt to record if the call actually started.
+      // Idempotency (preventing duplicate increments) is handled in firebaseService by sessionId.
+      if (hasStarted) {
         const amount = type === 'audio' ? 10 : 60;
-        // Use either the actual billed minutes, or at least 1 minute if the call connected
         const finalTalkMinutes = Math.max(1, billingMins);
         
-        console.log(`[Agora Context] Finalizing stats for ${role}: Talk Time: ${finalTalkMinutes}m, Total Calls: +1`);
+        console.log(`[Agora Context] Finalizing stats: Talk Time: ${finalTalkMinutes}m, Total Calls: +1`);
         
-        await recordCallRecord({
+        await recordCallRecord(sessionId, {
           callerId: activeCall.callerId,
           callerName: activeCall.callerName,
           callerAvatar: activeCall.callerAvatar,
@@ -245,11 +246,12 @@ export const CallProvider = ({ children }: { children?: React.ReactNode }) => {
           receiverAvatar: activeCall.receiverAvatar,
           duration: (Math.floor(durationSecs / 60)).toString().padStart(2, '0') + ":" + (durationSecs % 60).toString().padStart(2, '0'),
           durationInMinutes: finalTalkMinutes,
-          cost: billingMins * amount, // User only pays for billed minutes
+          cost: billingMins * amount,
           type: type as 'audio' | 'video',
           timestamp: null
         });
       }
+
       
       handleCallTermination(activeCall, role as 'caller' | 'receiver');
     } else {

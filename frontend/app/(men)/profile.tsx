@@ -128,7 +128,7 @@ export default function Profile() {
             </View>
             <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
             <View style={styles.statItem}>
-              <Text style={[styles.statValue, { color: theme.text }]}>{Math.floor((appUser?.talkTime || 0) / 60)}h</Text>
+              <Text style={[styles.statValue, { color: theme.text }]}>{(appUser?.talkTime || 0)}m</Text>
               <Text style={styles.statLabel}>Talk Time</Text>
             </View>
           </View>

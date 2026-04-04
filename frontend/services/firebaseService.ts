@@ -546,10 +546,19 @@ export const recordTransaction = async (tx: Transaction) => {
   }
 };
 
-export const recordCallRecord = async (record: Omit<CallRecord, 'id'>) => {
+export const recordCallRecord = async (sessionId: string, record: Omit<CallRecord, 'id'>) => {
   try {
     const timestamp = Timestamp.now();
-    await addDoc(collection(firebaseDb, 'CallHistory'), {
+    const historyRef = doc(firebaseDb, 'CallHistory', sessionId);
+    
+    // Check if this call session was already recorded to prevent duplicate increments
+    const snapshot = await getDoc(historyRef);
+    if (snapshot.exists()) {
+      console.log(`[Firebase Service] Call session ${sessionId} already recorded. Skipping.`);
+      return;
+    }
+
+    await setDoc(historyRef, {
       ...record,
       timestamp
     });
@@ -897,12 +906,17 @@ export const getEarningsByPeriod = async (userId: string, period: 'today' | 'yes
   }
 };
 
-export const subscribeToEarningsBreakdown = (userId: string, period: 'today' | 'yesterday' | 'week' | 'lifetime', callback: (data: { audio: number; video: number; gift: number; total: number }) => void) => {
+export const subscribeToEarningsBreakdown = (userId: string, period: 'current' | 'today' | 'yesterday' | 'week' | 'lifetime', callback: (data: { audio: number; video: number; gift: number; total: number }) => void) => {
   const now = new Date();
   let startDate: Date;
   let endDate: Date;
 
-  if (period === 'today') {
+  if (period === 'current') {
+    // Current is handled in calling component using user document fields
+    // This is just a fallback to satisfy TypeScript
+    startDate = now;
+    endDate = now;
+  } else if (period === 'today') {
     startDate = new Date();
     startDate.setHours(0, 0, 0, 0);
     endDate = now;

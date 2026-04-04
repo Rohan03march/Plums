@@ -140,7 +140,7 @@ export default function Profile() {
               title="Wallet & Payouts"
               subtitle={pendingCoins > 0 ? `Processing ₹${(pendingCoins / 10).toFixed(2)}...` : `Current Balance: ₹${(appUser?.rupeeBalance || 0).toFixed(2)}`}
               color={pendingCoins > 0 ? "#FFD700" : "#FF4D67"}
-              onPress={() => pendingCoins === 0 && router.push('/(women)/withdrawal')}
+              onPress={() => router.push('/(women)/withdrawal')}
             />
             <ActionItem
               icon="receipt"

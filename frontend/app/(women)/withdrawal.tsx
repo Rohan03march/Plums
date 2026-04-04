@@ -354,32 +354,17 @@ export default function Withdrawal() {
 
           <Text style={[styles.pendingHubTitle, { color: colors.text }]}>Withdrawal in Progress</Text>
           <Text style={[styles.pendingHubAmount, { color: isDark ? '#fff' : '#000' }]}>₹ {(pendingCoins / 10).toFixed(2)}</Text>
-          
-          <View style={[styles.pendingHubCard, { borderColor: colors.border }]}>
-            <BlurView intensity={isDark ? 30 : 50} tint="light" style={StyleSheet.absoluteFill} />
+
+          <View style={[styles.pendingHubCard, { borderColor: colors.border, backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.card }]}>
             <View style={styles.pendingHubCardInner}>
               <View style={styles.pendingHubStatusBadge}>
                 <View style={styles.statusDot} />
                 <Text style={styles.statusText}>PENDING PROCESSING</Text>
               </View>
-              
+
               <Text style={[styles.pendingHubMessage, { color: colors.subText }]}>
                 We are currently processing your request. The amount will be transferred to your account within 24 hours.
               </Text>
-              
-              <View style={styles.pendingHubDivider} />
-              
-              <View style={styles.pendingHubDetails}>
-                <View style={styles.detailRow}>
-                  <Ionicons name="shield-checkmark" size={16} color="#00C853" />
-                  <Text style={[styles.detailText, { color: colors.subText }]}>Secure Transaction</Text>
-                </View>
-                <View style={[styles.detailDivider, { backgroundColor: colors.border }]} />
-                <View style={styles.detailRow}>
-                  <Ionicons name="notifications" size={16} color="#FF4D67" />
-                  <Text style={[styles.detailText, { color: colors.subText }]}>Notify on Completion</Text>
-                </View>
-              </View>
             </View>
           </View>
         </Animated.View>
@@ -387,312 +372,312 @@ export default function Withdrawal() {
         <>
           <Animated.View entering={FadeInDown.delay(500).duration(800).springify()}>
 
-        <Text style={[styles.sectionHeading, { color: colors.subText }]}>WITHDRAWAL METHOD</Text>
-        <View style={[
-          styles.methodToggle,
-          { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#F1F5F9' },
-          pendingCoins > 0 && { opacity: 0.6 }
-        ]}>
-          <Animated.View style={[styles.toggleIndicator, toggleIndicatorStyle]} />
-          <Pressable
-            style={styles.toggleBtn}
-            onPress={() => pendingCoins === 0 && handleMethodToggle('upi')}
-            disabled={pendingCoins > 0}
-          >
-            <Text style={[styles.toggleText, { color: method === 'upi' ? '#fff' : colors.subText, opacity: method === 'upi' ? 1 : 0.6 }]}>
-              <Ionicons name="flash" size={14} color={method === 'upi' ? '#fff' : colors.subText} /> UPI ID
-            </Text>
-          </Pressable>
-          <Pressable
-            style={styles.toggleBtn}
-            onPress={() => pendingCoins === 0 && handleMethodToggle('bank')}
-            disabled={pendingCoins > 0}
-          >
-            <Text style={[styles.toggleText, { color: method === 'bank' ? '#fff' : colors.subText, opacity: method === 'bank' ? 1 : 0.6 }]}>
-              <Ionicons name="business" size={14} color={method === 'bank' ? '#fff' : colors.subText} /> Bank Transfer
-            </Text>
-          </Pressable>
-        </View>
-      </Animated.View>
-
-      <Animated.View layout={Layout.springify()} entering={FadeInDown.delay(600).duration(800).springify()}>
-        <View style={styles.formContainer}>
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Amount to Withdraw</Text>
-            <View style={[styles.inputWrapper, { backgroundColor: isDark ? '#1E1E24' : '#F8FAFC', borderColor: colors.border }]}>
-              <Text style={[styles.currencyPrefix, { color: colors.text }]}>₹</Text>
-              <TextInput
-                style={[styles.input, { color: colors.text }, pendingCoins > 0 && { opacity: 0.5 }]}
-                placeholder="0.00"
-                placeholderTextColor="#666"
-                keyboardType="numeric"
-                value={amount}
-                onChangeText={setAmount}
-                editable={pendingCoins === 0}
-              />
-              <TouchableOpacity
-                onPress={() => {
-                  const maxAmount = (totalCoins / 10).toFixed(2);
-                  setAmount(maxAmount);
-                }}
-                style={styles.maxBtn}
+            <Text style={[styles.sectionHeading, { color: colors.subText }]}>WITHDRAWAL METHOD</Text>
+            <View style={[
+              styles.methodToggle,
+              { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#F1F5F9' },
+              pendingCoins > 0 && { opacity: 0.6 }
+            ]}>
+              <Animated.View style={[styles.toggleIndicator, toggleIndicatorStyle]} />
+              <Pressable
+                style={styles.toggleBtn}
+                onPress={() => pendingCoins === 0 && handleMethodToggle('upi')}
+                disabled={pendingCoins > 0}
               >
-                <Text style={styles.maxBtnText}>MAX</Text>
-              </TouchableOpacity>
+                <Text style={[styles.toggleText, { color: method === 'upi' ? '#fff' : colors.subText, opacity: method === 'upi' ? 1 : 0.6 }]}>
+                  <Ionicons name="flash" size={14} color={method === 'upi' ? '#fff' : colors.subText} /> UPI ID
+                </Text>
+              </Pressable>
+              <Pressable
+                style={styles.toggleBtn}
+                onPress={() => pendingCoins === 0 && handleMethodToggle('bank')}
+                disabled={pendingCoins > 0}
+              >
+                <Text style={[styles.toggleText, { color: method === 'bank' ? '#fff' : colors.subText, opacity: method === 'bank' ? 1 : 0.6 }]}>
+                  <Ionicons name="business" size={14} color={method === 'bank' ? '#fff' : colors.subText} /> Bank Transfer
+                </Text>
+              </Pressable>
             </View>
-          </View>
+          </Animated.View>
 
-          {method === 'upi' ? (
-            <Animated.View entering={FadeInRight.duration(400)} key="upi-section">
-              {appUser?.savedUpiId && !isAddingMethod ? (
-                <View style={[styles.savedCard, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#F8FAFC', borderColor: colors.border }]}>
-                  <View style={styles.savedCardIcon}>
-                    <Ionicons name="flash" size={24} color="#FFD700" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.savedCardLabel, { color: colors.subText }]}>SAVED UPI ID</Text>
-                    <Text style={[styles.savedCardValue, { color: colors.text }]}>{appUser.savedUpiId}</Text>
-                  </View>
-                  <View style={styles.methodActions}>
-                    <TouchableOpacity onPress={() => setIsAddingMethod(true)} style={styles.iconBtn}>
-                      <Ionicons name="pencil" size={18} color={isDark ? '#fff' : '#000'} />
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={deletePayoutDetails} style={[styles.iconBtn, { backgroundColor: 'rgba(255, 77, 103, 0.1)' }]}>
-                      <Ionicons name="trash-outline" size={18} color="#FF4D67" />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              ) : (
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>UPI ID</Text>
-                  <View style={[styles.inputWrapper, { backgroundColor: isDark ? '#1E1E24' : '#F8FAFC', borderColor: colors.border }]}>
-                    <TextInput
-                      style={[styles.input, { color: colors.text }, pendingCoins > 0 && { opacity: 0.5 }]}
-                      placeholder="username@bank"
-                      placeholderTextColor="#666"
-                      value={upiId}
-                      onChangeText={setUpiId}
-                      autoCapitalize="none"
-                      editable={pendingCoins === 0}
-                    />
-                  </View>
+          <Animated.View layout={Layout.springify()} entering={FadeInDown.delay(600).duration(800).springify()}>
+            <View style={styles.formContainer}>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Amount to Withdraw</Text>
+                <View style={[styles.inputWrapper, { backgroundColor: isDark ? '#1E1E24' : '#F8FAFC', borderColor: colors.border }]}>
+                  <Text style={[styles.currencyPrefix, { color: colors.text }]}>₹</Text>
+                  <TextInput
+                    style={[styles.input, { color: colors.text }, pendingCoins > 0 && { opacity: 0.5 }]}
+                    placeholder="0.00"
+                    placeholderTextColor="#666"
+                    keyboardType="numeric"
+                    value={amount}
+                    onChangeText={setAmount}
+                    editable={pendingCoins === 0}
+                  />
                   <TouchableOpacity
-                    onPress={savePayoutDetails}
-                    style={styles.saveDetailsBtn}
-                    disabled={isSaving}
+                    onPress={() => {
+                      const maxAmount = (totalCoins / 10).toFixed(2);
+                      setAmount(maxAmount);
+                    }}
+                    style={styles.maxBtn}
                   >
-                    {isSaving ? <ActivityIndicator size="small" color="#FF4D67" /> : <Text style={styles.saveDetailsBtnText}>+ ADD UPI ID</Text>}
+                    <Text style={styles.maxBtnText}>MAX</Text>
                   </TouchableOpacity>
-                </View>
-              )}
-            </Animated.View>
-          ) : (
-            <Animated.View entering={FadeInRight.duration(400)} key="bank-section">
-              {appUser?.savedBankDetails && !isAddingMethod ? (
-                <View style={[styles.savedCard, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#F8FAFC', borderColor: colors.border }]}>
-                  <View style={styles.savedCardIcon}>
-                    <Ionicons name="business" size={24} color="#FF4D67" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.savedCardLabel, { color: colors.subText }]}>SAVED BANK ACCOUNT</Text>
-                    <Text style={[styles.savedCardValue, { color: colors.text }]}>
-                      {appUser.savedBankDetails.bankName} • {appUser.savedBankDetails.accountNumber.slice(-4).padStart(appUser.savedBankDetails.accountNumber.length, '*')}
-                    </Text>
-                    <Text style={[styles.savedCardSub, { color: colors.subText }]}>{appUser.savedBankDetails.accountHolder}</Text>
-                  </View>
-                  <View style={styles.methodActions}>
-                    <TouchableOpacity onPress={() => setIsAddingMethod(true)} style={styles.iconBtn}>
-                      <Ionicons name="pencil" size={18} color={isDark ? '#fff' : '#000'} />
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={deletePayoutDetails} style={[styles.iconBtn, { backgroundColor: 'rgba(255, 77, 103, 0.1)' }]}>
-                      <Ionicons name="trash-outline" size={18} color="#FF4D67" />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              ) : (
-                <View style={styles.bankFields}>
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.inputLabel}>Account Holder Name</Text>
-                    <View style={[styles.inputWrapper, { backgroundColor: isDark ? '#1E1E24' : '#F8FAFC', borderColor: colors.border }]}>
-                      <TextInput
-                        style={[styles.input, { color: colors.text }, pendingCoins > 0 && { opacity: 0.5 }]}
-                        placeholder="Full Name"
-                        placeholderTextColor="#666"
-                        value={accountHolder}
-                        onChangeText={setAccountHolder}
-                        editable={pendingCoins === 0}
-                      />
-                    </View>
-                  </View>
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.inputLabel}>Bank Name</Text>
-                    <View style={[styles.inputWrapper, { backgroundColor: isDark ? '#1E1E24' : '#F8FAFC', borderColor: colors.border }]}>
-                      <TextInput
-                        style={[styles.input, { color: colors.text }, pendingCoins > 0 && { opacity: 0.5 }]}
-                        placeholder="e.g. HDFC Bank"
-                        placeholderTextColor="#666"
-                        value={bankName}
-                        onChangeText={setBankName}
-                        editable={pendingCoins === 0}
-                      />
-                    </View>
-                  </View>
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.inputLabel}>Account Number</Text>
-                    <View style={[styles.inputWrapper, { backgroundColor: isDark ? '#1E1E24' : '#F8FAFC', borderColor: colors.border }]}>
-                      <TextInput
-                        style={[styles.input, { color: colors.text }, pendingCoins > 0 && { opacity: 0.5 }]}
-                        placeholder="000000000000"
-                        placeholderTextColor="#666"
-                        keyboardType="numeric"
-                        value={accountNumber}
-                        onChangeText={setAccountNumber}
-                        editable={pendingCoins === 0}
-                      />
-                    </View>
-                  </View>
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.inputLabel}>IFSC Code</Text>
-                    <View style={[styles.inputWrapper, { backgroundColor: isDark ? '#1E1E24' : '#F8FAFC', borderColor: colors.border }]}>
-                      <TextInput
-                        style={[styles.input, { color: colors.text }, pendingCoins > 0 && { opacity: 0.5 }]}
-                        placeholder="IFSC Code"
-                        placeholderTextColor="#666"
-                        autoCapitalize="characters"
-                        value={ifscCode}
-                        onChangeText={setIfscCode}
-                        editable={pendingCoins === 0}
-                      />
-                    </View>
-                  </View>
-                  <TouchableOpacity
-                    onPress={savePayoutDetails}
-                    style={styles.saveDetailsBtn}
-                    disabled={isSaving}
-                  >
-                    {isSaving ? <ActivityIndicator size="small" color="#FF4D67" /> : <Text style={styles.saveDetailsBtnText}>+ ADD BANK DETAILS</Text>}
-                  </TouchableOpacity>
-                </View>
-              )}
-            </Animated.View>
-          )}
-
-          {parseFloat(amount) > 0 && (
-            <Animated.View
-              entering={FadeInDown.duration(800).springify()}
-              style={[styles.breakdownContainer, { borderColor: colors.border }]}
-            >
-              <BlurView intensity={isDark ? 40 : 60} tint={isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
-
-              <View style={styles.breakdownInner}>
-                <View style={styles.breakdownHeader}>
-                  <View style={[styles.receiptIcon, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)', borderColor: colors.border }]}>
-                    <Ionicons name="receipt" size={20} color={isDark ? '#fff' : '#000'} />
-                  </View>
-                  <View>
-                    <Text style={[styles.breakdownTitle, { color: colors.text }]}>Payout Summary</Text>
-                    <Text style={[styles.breakdownSub, { color: colors.subText }]}>Estimates based on current rates</Text>
-                  </View>
-                </View>
-
-                <View style={styles.breakdownBody}>
-                  <View style={styles.breakdownRow}>
-                    <Text style={[styles.breakdownLabel, { color: colors.subText }]}>Requested Amount</Text>
-                    <Text style={[styles.breakdownValue, { color: colors.text }]}>₹{breakdown.gross.toFixed(2)}</Text>
-                  </View>
-
-                  <View style={styles.breakdownRow}>
-                    <View style={styles.labelWithInfo}>
-                      <Text style={[styles.breakdownLabel, { color: colors.subText }]}>TDS Deduction</Text>
-                      <View style={styles.tdsBadge}>
-                        <Text style={styles.tdsBadgeText}>5%</Text>
-                      </View>
-                    </View>
-                    <Text style={[styles.breakdownValue, { color: '#FF4D67' }]}>- ₹{breakdown.tds.toFixed(2)}</Text>
-                  </View>
-
-                  <View style={styles.dashedContainer}>
-                    <View style={[styles.dashedLine, { borderColor: colors.border }]} />
-                  </View>
-
-                  <View style={styles.breakdownNetRow}>
-                    <View>
-                      <Text style={[styles.breakdownLabel, { color: colors.text, fontWeight: '800' }]}>Estimated Payout</Text>
-                      <Text style={[styles.netAmountCaption, { color: colors.subText }]}>Credited to your account</Text>
-                    </View>
-                    <View style={styles.netAmountContainer}>
-                      <Text style={[styles.breakdownNetValue, { color: '#00C853' }]}>₹{breakdown.net.toFixed(2)}</Text>
-                    </View>
-                  </View>
-
-                  <View style={[styles.coinInfoBox, { backgroundColor: isDark ? 'rgba(255,215,0,0.1)' : 'rgba(255,215,0,0.05)', borderColor: isDark ? 'rgba(255,215,0,0.2)' : 'rgba(255,215,0,0.1)' }]}>
-                    <View style={styles.coinInfoIcon}>
-                      <MaterialCommunityIcons name="database-arrow-down" size={18} color="#FFD700" />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.coinInfoHeading, { color: isDark ? '#FFD700' : '#B8860B' }]}>FUNDS DEDUCTION</Text>
-                      <Text style={[styles.coinInfoText, { color: colors.text }]}>
-                        <Text style={{ fontWeight: '900', color: isDark ? '#fff' : '#000' }}>{breakdown.coins}</Text> Gold coins will be deducted from your total balance.
-                      </Text>
-                    </View>
-                  </View>
                 </View>
               </View>
-            </Animated.View>
-          )}
 
-          {/* Guidelines Section */}
-          <View style={[styles.guidelinesContainer, { backgroundColor: isDark ? 'rgba(255, 77, 103, 0.05)' : '#FFF5F6', borderColor: isDark ? 'rgba(255, 77, 103, 0.2)' : '#FFE4E8' }]}>
-            <View style={styles.guidelinesHeader}>
-              <Ionicons name="information-circle" size={18} color="#FF4D67" />
-              <Text style={styles.guidelinesTitle}>PAYOUT GUIDELINES</Text>
-            </View>
-            <View style={styles.guidelineRow}>
-              <View style={styles.guidelineBullet} />
-              <Text style={[styles.guidelineText, { color: colors.subText }]}>Amount will be transferred within <Text style={{ color: colors.text, fontWeight: '800' }}>24 Hours</Text>.</Text>
-            </View>
-            <View style={styles.guidelineRow}>
-              <View style={styles.guidelineBullet} />
-              <Text style={[styles.guidelineText, { color: colors.subText }]}><Text style={{ color: colors.text, fontWeight: '800' }}>5% TDS</Text> will be deducted as per government regulations.</Text>
-            </View>
-            <View style={styles.guidelineRow}>
-              <View style={styles.guidelineBullet} />
-              <Text style={[styles.guidelineText, { color: colors.subText }]}>You cannot request a new withdrawal while one is <Text style={{ color: '#FF4D67', fontWeight: '800' }}>PENDING</Text>.</Text>
-            </View>
-          </View>
-
-          <TouchableOpacity
-            style={[styles.button, { opacity: (loading || pendingCoins > 0) ? 0.7 : 1 }]}
-            onPress={handleWithdraw}
-            disabled={loading || pendingCoins > 0}
-          >
-            <LinearGradient
-              colors={pendingCoins > 0 ? ['#8E8E93', '#AEAEB2'] : ['#FF4D67', '#FF7E8D']}
-              style={styles.buttonGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" size="small" />
+              {method === 'upi' ? (
+                <Animated.View entering={FadeInRight.duration(400)} key="upi-section">
+                  {appUser?.savedUpiId && !isAddingMethod ? (
+                    <View style={[styles.savedCard, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#F8FAFC', borderColor: colors.border }]}>
+                      <View style={styles.savedCardIcon}>
+                        <Ionicons name="flash" size={24} color="#FFD700" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.savedCardLabel, { color: colors.subText }]}>SAVED UPI ID</Text>
+                        <Text style={[styles.savedCardValue, { color: colors.text }]}>{appUser.savedUpiId}</Text>
+                      </View>
+                      <View style={styles.methodActions}>
+                        <TouchableOpacity onPress={() => setIsAddingMethod(true)} style={styles.iconBtn}>
+                          <Ionicons name="pencil" size={18} color={isDark ? '#fff' : '#000'} />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={deletePayoutDetails} style={[styles.iconBtn, { backgroundColor: 'rgba(255, 77, 103, 0.1)' }]}>
+                          <Ionicons name="trash-outline" size={18} color="#FF4D67" />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ) : (
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.inputLabel}>UPI ID</Text>
+                      <View style={[styles.inputWrapper, { backgroundColor: isDark ? '#1E1E24' : '#F8FAFC', borderColor: colors.border }]}>
+                        <TextInput
+                          style={[styles.input, { color: colors.text }, pendingCoins > 0 && { opacity: 0.5 }]}
+                          placeholder="username@bank"
+                          placeholderTextColor="#666"
+                          value={upiId}
+                          onChangeText={setUpiId}
+                          autoCapitalize="none"
+                          editable={pendingCoins === 0}
+                        />
+                      </View>
+                      <TouchableOpacity
+                        onPress={savePayoutDetails}
+                        style={styles.saveDetailsBtn}
+                        disabled={isSaving}
+                      >
+                        {isSaving ? <ActivityIndicator size="small" color="#FF4D67" /> : <Text style={styles.saveDetailsBtnText}>+ ADD UPI ID</Text>}
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </Animated.View>
               ) : (
-                <>
-                  <Text style={styles.buttonText}>
-                    {pendingCoins > 0
-                      ? 'Request Pending...'
-                      : parseFloat(amount) > 0
-                        ? `Withdraw ₹${breakdown.net.toFixed(2)}`
-                        : 'Request Withdraw Now'}
-                  </Text>
-                  <Ionicons name={pendingCoins > 0 ? "time-outline" : "arrow-forward"} size={20} color="#fff" />
-                </>
+                <Animated.View entering={FadeInRight.duration(400)} key="bank-section">
+                  {appUser?.savedBankDetails && !isAddingMethod ? (
+                    <View style={[styles.savedCard, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#F8FAFC', borderColor: colors.border }]}>
+                      <View style={styles.savedCardIcon}>
+                        <Ionicons name="business" size={24} color="#FF4D67" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.savedCardLabel, { color: colors.subText }]}>SAVED BANK ACCOUNT</Text>
+                        <Text style={[styles.savedCardValue, { color: colors.text }]}>
+                          {appUser.savedBankDetails.bankName} • {appUser.savedBankDetails.accountNumber.slice(-4).padStart(appUser.savedBankDetails.accountNumber.length, '*')}
+                        </Text>
+                        <Text style={[styles.savedCardSub, { color: colors.subText }]}>{appUser.savedBankDetails.accountHolder}</Text>
+                      </View>
+                      <View style={styles.methodActions}>
+                        <TouchableOpacity onPress={() => setIsAddingMethod(true)} style={styles.iconBtn}>
+                          <Ionicons name="pencil" size={18} color={isDark ? '#fff' : '#000'} />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={deletePayoutDetails} style={[styles.iconBtn, { backgroundColor: 'rgba(255, 77, 103, 0.1)' }]}>
+                          <Ionicons name="trash-outline" size={18} color="#FF4D67" />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ) : (
+                    <View style={styles.bankFields}>
+                      <View style={styles.inputGroup}>
+                        <Text style={styles.inputLabel}>Account Holder Name</Text>
+                        <View style={[styles.inputWrapper, { backgroundColor: isDark ? '#1E1E24' : '#F8FAFC', borderColor: colors.border }]}>
+                          <TextInput
+                            style={[styles.input, { color: colors.text }, pendingCoins > 0 && { opacity: 0.5 }]}
+                            placeholder="Full Name"
+                            placeholderTextColor="#666"
+                            value={accountHolder}
+                            onChangeText={setAccountHolder}
+                            editable={pendingCoins === 0}
+                          />
+                        </View>
+                      </View>
+                      <View style={styles.inputGroup}>
+                        <Text style={styles.inputLabel}>Bank Name</Text>
+                        <View style={[styles.inputWrapper, { backgroundColor: isDark ? '#1E1E24' : '#F8FAFC', borderColor: colors.border }]}>
+                          <TextInput
+                            style={[styles.input, { color: colors.text }, pendingCoins > 0 && { opacity: 0.5 }]}
+                            placeholder="e.g. HDFC Bank"
+                            placeholderTextColor="#666"
+                            value={bankName}
+                            onChangeText={setBankName}
+                            editable={pendingCoins === 0}
+                          />
+                        </View>
+                      </View>
+                      <View style={styles.inputGroup}>
+                        <Text style={styles.inputLabel}>Account Number</Text>
+                        <View style={[styles.inputWrapper, { backgroundColor: isDark ? '#1E1E24' : '#F8FAFC', borderColor: colors.border }]}>
+                          <TextInput
+                            style={[styles.input, { color: colors.text }, pendingCoins > 0 && { opacity: 0.5 }]}
+                            placeholder="000000000000"
+                            placeholderTextColor="#666"
+                            keyboardType="numeric"
+                            value={accountNumber}
+                            onChangeText={setAccountNumber}
+                            editable={pendingCoins === 0}
+                          />
+                        </View>
+                      </View>
+                      <View style={styles.inputGroup}>
+                        <Text style={styles.inputLabel}>IFSC Code</Text>
+                        <View style={[styles.inputWrapper, { backgroundColor: isDark ? '#1E1E24' : '#F8FAFC', borderColor: colors.border }]}>
+                          <TextInput
+                            style={[styles.input, { color: colors.text }, pendingCoins > 0 && { opacity: 0.5 }]}
+                            placeholder="IFSC Code"
+                            placeholderTextColor="#666"
+                            autoCapitalize="characters"
+                            value={ifscCode}
+                            onChangeText={setIfscCode}
+                            editable={pendingCoins === 0}
+                          />
+                        </View>
+                      </View>
+                      <TouchableOpacity
+                        onPress={savePayoutDetails}
+                        style={styles.saveDetailsBtn}
+                        disabled={isSaving}
+                      >
+                        {isSaving ? <ActivityIndicator size="small" color="#FF4D67" /> : <Text style={styles.saveDetailsBtnText}>+ ADD BANK DETAILS</Text>}
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </Animated.View>
               )}
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
-      </Animated.View>
-    </>
-    )}
-</ScrollView>
+
+              {parseFloat(amount) > 0 && (
+                <Animated.View
+                  entering={FadeInDown.duration(800).springify()}
+                  style={[styles.breakdownContainer, { borderColor: colors.border }]}
+                >
+                  <BlurView intensity={isDark ? 40 : 60} tint={isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
+
+                  <View style={styles.breakdownInner}>
+                    <View style={styles.breakdownHeader}>
+                      <View style={[styles.receiptIcon, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)', borderColor: colors.border }]}>
+                        <Ionicons name="receipt" size={20} color={isDark ? '#fff' : '#000'} />
+                      </View>
+                      <View>
+                        <Text style={[styles.breakdownTitle, { color: colors.text }]}>Payout Summary</Text>
+                        <Text style={[styles.breakdownSub, { color: colors.subText }]}>Estimates based on current rates</Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.breakdownBody}>
+                      <View style={styles.breakdownRow}>
+                        <Text style={[styles.breakdownLabel, { color: colors.subText }]}>Requested Amount</Text>
+                        <Text style={[styles.breakdownValue, { color: colors.text }]}>₹{breakdown.gross.toFixed(2)}</Text>
+                      </View>
+
+                      <View style={styles.breakdownRow}>
+                        <View style={styles.labelWithInfo}>
+                          <Text style={[styles.breakdownLabel, { color: colors.subText }]}>TDS Deduction</Text>
+                          <View style={styles.tdsBadge}>
+                            <Text style={styles.tdsBadgeText}>5%</Text>
+                          </View>
+                        </View>
+                        <Text style={[styles.breakdownValue, { color: '#FF4D67' }]}>- ₹{breakdown.tds.toFixed(2)}</Text>
+                      </View>
+
+                      <View style={styles.dashedContainer}>
+                        <View style={[styles.dashedLine, { borderColor: colors.border }]} />
+                      </View>
+
+                      <View style={styles.breakdownNetRow}>
+                        <View>
+                          <Text style={[styles.breakdownLabel, { color: colors.text, fontWeight: '800' }]}>Estimated Payout</Text>
+                          <Text style={[styles.netAmountCaption, { color: colors.subText }]}>Credited to your account</Text>
+                        </View>
+                        <View style={styles.netAmountContainer}>
+                          <Text style={[styles.breakdownNetValue, { color: '#00C853' }]}>₹{breakdown.net.toFixed(2)}</Text>
+                        </View>
+                      </View>
+
+                      <View style={[styles.coinInfoBox, { backgroundColor: isDark ? 'rgba(255,215,0,0.1)' : 'rgba(255,215,0,0.05)', borderColor: isDark ? 'rgba(255,215,0,0.2)' : 'rgba(255,215,0,0.1)' }]}>
+                        <View style={styles.coinInfoIcon}>
+                          <MaterialCommunityIcons name="database-arrow-down" size={18} color="#FFD700" />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.coinInfoHeading, { color: isDark ? '#FFD700' : '#B8860B' }]}>FUNDS DEDUCTION</Text>
+                          <Text style={[styles.coinInfoText, { color: colors.text }]}>
+                            <Text style={{ fontWeight: '900', color: isDark ? '#fff' : '#000' }}>{breakdown.coins}</Text> Gold coins will be deducted from your total balance.
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  </View>
+                </Animated.View>
+              )}
+
+              {/* Guidelines Section */}
+              <View style={[styles.guidelinesContainer, { backgroundColor: isDark ? 'rgba(255, 77, 103, 0.05)' : '#FFF5F6', borderColor: isDark ? 'rgba(255, 77, 103, 0.2)' : '#FFE4E8' }]}>
+                <View style={styles.guidelinesHeader}>
+                  <Ionicons name="information-circle" size={18} color="#FF4D67" />
+                  <Text style={styles.guidelinesTitle}>PAYOUT GUIDELINES</Text>
+                </View>
+                <View style={styles.guidelineRow}>
+                  <View style={styles.guidelineBullet} />
+                  <Text style={[styles.guidelineText, { color: colors.subText }]}>Amount will be transferred within <Text style={{ color: colors.text, fontWeight: '800' }}>24 Hours</Text>.</Text>
+                </View>
+                <View style={styles.guidelineRow}>
+                  <View style={styles.guidelineBullet} />
+                  <Text style={[styles.guidelineText, { color: colors.subText }]}><Text style={{ color: colors.text, fontWeight: '800' }}>5% TDS</Text> will be deducted as per government regulations.</Text>
+                </View>
+                <View style={styles.guidelineRow}>
+                  <View style={styles.guidelineBullet} />
+                  <Text style={[styles.guidelineText, { color: colors.subText }]}>You cannot request a new withdrawal while one is <Text style={{ color: '#FF4D67', fontWeight: '800' }}>PENDING</Text>.</Text>
+                </View>
+              </View>
+
+              <TouchableOpacity
+                style={[styles.button, { opacity: (loading || pendingCoins > 0) ? 0.7 : 1 }]}
+                onPress={handleWithdraw}
+                disabled={loading || pendingCoins > 0}
+              >
+                <LinearGradient
+                  colors={pendingCoins > 0 ? ['#8E8E93', '#AEAEB2'] : ['#FF4D67', '#FF7E8D']}
+                  style={styles.buttonGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                >
+                  {loading ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <>
+                      <Text style={styles.buttonText}>
+                        {pendingCoins > 0
+                          ? 'Request Pending...'
+                          : parseFloat(amount) > 0
+                            ? `Withdraw ₹${breakdown.net.toFixed(2)}`
+                            : 'Request Withdraw Now'}
+                      </Text>
+                      <Ionicons name={pendingCoins > 0 ? "time-outline" : "arrow-forward"} size={20} color="#fff" />
+                    </>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        </>
+      )}
+    </ScrollView>
   );
 }
 
@@ -932,7 +917,7 @@ const styles = StyleSheet.create({
   },
   coinInfoHeading: { fontSize: 10, fontWeight: '900', letterSpacing: 1.5, marginBottom: 4 },
   coinInfoText: { fontSize: 12, fontWeight: '700', lineHeight: 20 },
-  
+
   // Pending Hub Styles
   pendingHub: {
     paddingHorizontal: 12,
@@ -975,11 +960,6 @@ const styles = StyleSheet.create({
     borderRadius: 32,
     borderWidth: 1.5,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 5,
   },
   pendingHubCardInner: {
     padding: 24,

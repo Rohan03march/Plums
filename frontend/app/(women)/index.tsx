@@ -199,12 +199,11 @@ export default function WomenHome() {
             </View>
           </View>
           <TouchableOpacity
-            onPress={() => pendingCoins === 0 && router.push('/(women)/withdrawal')}
-            disabled={pendingCoins > 0}
+            onPress={() => router.push('/(women)/withdrawal')}
             style={[
               styles.coinBalanceBtn,
               { backgroundColor: isDark ? 'rgba(255,215,0,0.1)' : 'rgba(255,215,0,0.15)' },
-              pendingCoins > 0 && { opacity: 0.8 }
+              pendingCoins > 0 && { opacity: 0.9 }
             ]}
           >
             <FontAwesome5 name="coins" size={14} color="#FFD700" />
@@ -237,7 +236,7 @@ export default function WomenHome() {
                     <FontAwesome5 name="coins" size={28} color="#FFD700" />
                   </View>
                   <Text style={[styles.revMainLarge, { color: colors.text }]}>
-                    {periodEarnings.toLocaleString() || '0'}
+                    {pendingCoins > 0 ? '0' : (periodEarnings.toLocaleString() || '0')}
                   </Text>
                   <Text style={styles.goldTextLabel}></Text>
                 </View>
@@ -305,9 +304,9 @@ export default function WomenHome() {
             <View style={styles.earningsGrid}>
               {(() => {
                 const categories = [
-                  { label: 'Audio', icon: 'mic', coins: periodBreakdown.audio, rupees: periodBreakdown.audio * 0.14, color: '#FF4D67', bg: 'rgba(255, 77, 103, 0.05)' },
-                  { label: 'Video', icon: 'videocam', coins: periodBreakdown.video, rupees: periodBreakdown.video * 0.10, color: '#8E44AD', bg: 'rgba(142, 68, 173, 0.05)' },
-                  { label: 'Gifts', icon: 'gift', coins: periodBreakdown.gift, rupees: periodBreakdown.gift * 0.10, color: '#F39C12', bg: 'rgba(243, 156, 18, 0.05)' }
+                  { label: 'Audio', icon: 'mic', coins: pendingCoins > 0 ? 0 : periodBreakdown.audio, rupees: pendingCoins > 0 ? 0 : periodBreakdown.audio * 0.14, color: '#FF4D67', bg: 'rgba(255, 77, 103, 0.05)' },
+                  { label: 'Video', icon: 'videocam', coins: pendingCoins > 0 ? 0 : periodBreakdown.video, rupees: pendingCoins > 0 ? 0 : periodBreakdown.video * 0.10, color: '#8E44AD', bg: 'rgba(142, 68, 173, 0.05)' },
+                  { label: 'Gifts', icon: 'gift', coins: pendingCoins > 0 ? 0 : periodBreakdown.gift, rupees: pendingCoins > 0 ? 0 : periodBreakdown.gift * 0.10, color: '#F39C12', bg: 'rgba(243, 156, 18, 0.05)' }
                 ];
 
                 return categories.map((cat, idx) => (

@@ -228,18 +228,18 @@ export default function Profile() {
               ]}
               onPress={() => user?.uid && updateUserProfile(user.uid, { paymentMethod: 'upi' })}
             >
-            <MaterialCommunityIcons name="integrated-circuit-chip" size={18} color={appUser?.paymentMethod === 'upi' ? '#FF4D67' : theme.subText} />
-            <Text style={[styles.payOptionText, { color: appUser?.paymentMethod === 'upi' ? theme.text : theme.subText }]}>UPI</Text>
-          </TouchableOpacity>
+              <MaterialCommunityIcons name="integrated-circuit-chip" size={18} color={appUser?.paymentMethod === 'upi' ? '#FF4D67' : theme.subText} />
+              <Text style={[styles.payOptionText, { color: appUser?.paymentMethod === 'upi' ? theme.text : theme.subText }]}>UPI</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[
-              styles.payOption,
-              appUser?.paymentMethod === 'card' && { backgroundColor: theme.bg },
-              { borderColor: appUser?.paymentMethod === 'card' ? '#FF4D67' : 'transparent' }
-            ]}
-            onPress={() => user?.uid && updateUserProfile(user.uid, { paymentMethod: 'card' })}
-          >
+            <TouchableOpacity
+              style={[
+                styles.payOption,
+                appUser?.paymentMethod === 'card' && { backgroundColor: theme.bg },
+                { borderColor: appUser?.paymentMethod === 'card' ? '#FF4D67' : 'transparent' }
+              ]}
+              onPress={() => user?.uid && updateUserProfile(user.uid, { paymentMethod: 'card' })}
+            >
               <Ionicons name="card" size={18} color={appUser?.paymentMethod === 'card' ? '#FF4D67' : theme.subText} />
               <Text style={[styles.payOptionText, { color: appUser?.paymentMethod === 'card' ? theme.text : theme.subText }]}>Card</Text>
             </TouchableOpacity>
@@ -261,7 +261,7 @@ export default function Profile() {
           onPress={handleLogout}
         >
           <Ionicons name="log-out-outline" size={20} color="#FF4D67" />
-          <Text style={styles.logoutBtnText}>Switch Account or Logout</Text>
+          <Text style={styles.logoutBtnText}>Logout</Text>
         </TouchableOpacity>
       </View>
       <View style={{ height: 100 }} />

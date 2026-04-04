@@ -415,39 +415,6 @@ export default function WomenHome() {
           </View>
         </Animated.View>
 
-
-
-        {/* Performance Hub */}
-        <Animated.View
-          entering={FadeInDown.delay(700).duration(800).springify()}
-          style={styles.performanceSection}
-        >
-          <Text style={[styles.sectionHeading, { color: colors.text }]}>LIVE PERFORMANCE</Text>
-          <View style={[styles.performanceCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <View style={styles.perfItem}>
-              <View style={[styles.perfIconBox, { backgroundColor: 'rgba(76, 175, 80, 0.1)' }]}>
-                <Ionicons name="call" size={20} color="#4CAF50" />
-              </View>
-              <View style={styles.perfContent}>
-                <Text style={[styles.perfValue, { color: colors.text }]}>{appUser?.totalCalls || '0'}</Text>
-                <Text style={[styles.perfLabel, { color: colors.subText }]}>Total Calls</Text>
-              </View>
-            </View>
-            
-            <View style={[styles.perfDivider, { backgroundColor: colors.border }]} />
-            
-            <View style={styles.perfItem}>
-              <View style={[styles.perfIconBox, { backgroundColor: 'rgba(33, 150, 243, 0.1)' }]}>
-                <Ionicons name="time" size={20} color="#2196F3" />
-              </View>
-              <View style={styles.perfContent}>
-                <Text style={[styles.perfValue, { color: colors.text }]}>{appUser?.talkTime || '0'}m</Text>
-                <Text style={[styles.perfLabel, { color: colors.subText }]}>Talk Time</Text>
-              </View>
-            </View>
-          </View>
-        </Animated.View>
-
         {/* Safety Carousel */}
         <Animated.View
           entering={FadeInDown.delay(900).duration(800)}

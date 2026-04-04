@@ -41,10 +41,10 @@ interface CallContextType {
   toggleSpeaker: () => void;
   toggleCamera: () => void;
   setUserRating: (rating: number) => void;
-  submitRating: () => Promise<void>;
+  submitRating: (rating: number, reason?: string) => Promise<boolean>;
   skipRating: () => void;
   isSubmittingRating: boolean;
-  lastCallData: { id: string; receiverId: string; type: string; receiverName?: string; receiverAvatar?: string | null } | null;
+  lastCallData: { id: string; receiverId: string; type: string; receiverName?: string; receiverAvatar?: string | null; role?: string } | null;
   lastSignal: { type: string; data: any; timestamp: number } | null;
   sendCallSignal: (type: string, data: any) => void;
 }
@@ -83,13 +83,11 @@ export const CallProvider = ({ children }: { children?: React.ReactNode }) => {
   const [isMuted, setIsMuted] = useState(false);
   const [isSpeaker, setIsSpeaker] = useState(true);
   const [isCameraOn, setIsCameraOn] = useState(true);
-  const [showRatingModal, setShowRatingModal] = useState(false);
-  const [userRating, setUserRating] = useState(0);
   const [isSubmittingRating, setIsSubmittingRating] = useState(false);
   const [callRole, setCallRole] = useState<'caller' | 'receiver' | null>(null);
   const [isEngineReady, setIsEngineReady] = useState(false);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
-  const [lastCallData, setLastCallData] = useState<{ id: string; receiverId: string; type: string; receiverName?: string; receiverAvatar?: string | null } | null>(null);
+  const [lastCallData, setLastCallData] = useState<{ id: string; receiverId: string; type: string; receiverName?: string; receiverAvatar?: string | null; role?: string } | null>(null);
   const [lastSignal, setLastSignal] = useState<{ type: string; data: any; timestamp: number } | null>(null);
 
   const engine = useRef<IRtcEngine | null>(null);
@@ -97,6 +95,7 @@ export const CallProvider = ({ children }: { children?: React.ReactNode }) => {
   const billingCountRef = React.useRef(0);
   const lastBilledSecondRef = React.useRef(-1);
   const hasCallStartedRef = useRef(false);
+  const wasAcceptedRef = useRef(false);
   const sessionUnsubscribe = useRef<(() => void) | null>(null);
   const pendingSessionId = useRef<string | null>(null);
 
@@ -140,9 +139,10 @@ export const CallProvider = ({ children }: { children?: React.ReactNode }) => {
   // Caller (Master) starts the timer when connected - using "Pulse Start" for reliability
   useEffect(() => {
     let pulseInterval: any;
-    if (callRole === 'caller' && activeCall?.status === 'accepted' && remoteUid !== null && !isTimerRunning) {
+    if (callRole === 'caller' && remoteUid !== null && !isTimerRunning) {
       console.log('[Agora Context] Unified Start: Pulsing TIMER_START signal...');
       setIsTimerRunning(true);
+      wasAcceptedRef.current = true;
       
       let count = 0;
       pulseInterval = setInterval(() => {
@@ -164,10 +164,10 @@ export const CallProvider = ({ children }: { children?: React.ReactNode }) => {
     if (callRole === 'receiver' && remoteUid !== null && !isTimerRunning) {
       failSafeTimeout = setTimeout(() => {
         if (!isTimerRunning) {
-          console.warn('[Agora Context] Master signal missed; starting timer via fail-safe.');
+          console.warn('[Agora Context] Master signal missed; starting timer immediately.');
           setIsTimerRunning(true);
         }
-      }, 5000);
+      }, 0);
     }
     return () => {
       if (failSafeTimeout) clearTimeout(failSafeTimeout);
@@ -178,25 +178,39 @@ export const CallProvider = ({ children }: { children?: React.ReactNode }) => {
   const handleCallTermination = React.useCallback(async (session: CallSession | null, role: 'caller' | 'receiver') => {
     if (!activeCall && !session) return;
     
-    // Store data needed for rating modal
+    // Store data needed for rating screen
     const dataToStore = session || activeCall;
+    let targetDetails = null;
+
     if (dataToStore) {
-      setLastCallData({ 
+      targetDetails = { 
         id: dataToStore.id, 
-        receiverId: dataToStore.receiverId, 
+        receiverId: role === 'caller' ? dataToStore.receiverId : dataToStore.callerId, 
         type: dataToStore.type,
-        receiverName: dataToStore.receiverName,
-        receiverAvatar: dataToStore.receiverAvatar || null
-      });
+        receiverName: role === 'caller' ? dataToStore.receiverName : dataToStore.callerName,
+        receiverAvatar: (role === 'caller' ? dataToStore.receiverAvatar : dataToStore.callerAvatar) || null,
+        role: role
+      };
+      setLastCallData(targetDetails);
     }
 
     const hasStarted = hasCallStartedRef.current;
+    const wasAccepted = wasAcceptedRef.current || (dataToStore?.status === 'accepted');
+    
+    console.log(`[Termination] Role: ${role}, hasStarted: ${hasStarted}, wasAccepted: ${wasAccepted}, activeStatus: ${dataToStore?.status}`);
+    
     cleanupCall();
 
-    if (role === 'caller' && hasStarted) {
-      setShowRatingModal(true);
-    } 
-    router.replace(role === 'caller' ? '/(men)' : '/(women)');
+    if ((hasStarted || wasAccepted) && targetDetails) {
+      console.log(`[Rating] Redirecting ${role} to rating screen for participant ${targetDetails.receiverId}`);
+      router.replace({
+        pathname: '/call/rate',
+        params: targetDetails
+      });
+    } else {
+      console.log(`[Rating] Skipping rating for ${role}. Reason: Not started/accepted. Redirecting to dashboard.`);
+      router.replace(role === 'caller' ? '/(men)' : '/(women)');
+    }
   }, [activeCall, cleanupCall, router]);
 
   const endCall = React.useCallback(async () => {
@@ -243,17 +257,20 @@ export const CallProvider = ({ children }: { children?: React.ReactNode }) => {
   // Billing Logic (Recurring with grace periods)
   useEffect(() => {
     if (callRole === 'caller' && activeCall?.status === 'accepted' && remoteUid !== null) {
-      const amount = activeCall.type === 'audio' ? 10 : 60;
+      const isVideo = activeCall.type === 'video';
+      const amount = isVideo ? 60 : 10;
       
       let shouldBill = false;
-      if (activeCall.type === 'audio') {
-        // Audio: Bill at 10s of every minute (10s, 70s, 130s...)
-        if (seconds % 60 === 10 && Math.floor(seconds / 60) >= billingCountRef.current) {
+      const currentMinute = Math.floor(seconds / 60);
+      
+      if (isVideo) {
+        // Video: Bill at the 60s mark of every minute (60, 120, 180...)
+        if (seconds > 0 && seconds % 60 === 0 && currentMinute > billingCountRef.current) {
           shouldBill = true;
         }
       } else {
-        // Video: Bill at 60s of every minute (60s, 120s, 180s...)
-        if (seconds > 0 && seconds % 60 === 0 && Math.floor(seconds / 60) > billingCountRef.current) {
+        // Audio: Bill at the 10s mark of every minute (10, 70, 130...)
+        if (seconds % 60 === 10 && currentMinute >= billingCountRef.current) {
           shouldBill = true;
         }
       }
@@ -296,6 +313,7 @@ export const CallProvider = ({ children }: { children?: React.ReactNode }) => {
     billingCountRef.current = 0;
     lastBilledSecondRef.current = -1;
     hasCallStartedRef.current = false;
+    wasAcceptedRef.current = false;
     setIsMinimized(false);
     setRemoteUid(null);
     setIsMuted(false);
@@ -425,6 +443,9 @@ export const CallProvider = ({ children }: { children?: React.ReactNode }) => {
     if (sessionUnsubscribe.current) sessionUnsubscribe.current();
     sessionUnsubscribe.current = subscribeToCallSession(sessionId, (updatedSession) => {
       setActiveCall(updatedSession);
+      if (updatedSession?.status === 'accepted') {
+        wasAcceptedRef.current = true;
+      }
       if (!updatedSession || updatedSession.status === 'ended' || updatedSession.status === 'rejected') {
         handleCallTermination(updatedSession, role);
       }
@@ -474,28 +495,28 @@ export const CallProvider = ({ children }: { children?: React.ReactNode }) => {
     }
   }, [isCameraOn]);
 
-  const submitRating = React.useCallback(async () => {
-    const data = lastCallData || activeCall;
-    if (data && userRating > 0) {
-      setIsSubmittingRating(true);
-      try {
-        await updateCreatorRating(data.receiverId, userRating);
-      } catch (err) {
-        console.error('Failed to submit rating:', err);
-      } finally {
-        setIsSubmittingRating(false);
-      }
-      setShowRatingModal(false);
+  const submitRating = React.useCallback(async (rating: number, reason?: string) => {
+    if (!lastCallData || rating === 0) return false;
+    
+    setIsSubmittingRating(true);
+    try {
+      // For now, reasoning is logged but central rating still uses updateCreatorRating
+      // In the future, we can add the reason to a sub-collection
+      console.log(`[Rating] Submitting ${rating} stars for ${lastCallData.receiverId}. Reason: ${reason || 'None'}`);
+      await updateCreatorRating(lastCallData.receiverId, rating);
+      return true;
+    } catch (err) {
+      console.error('Failed to submit rating:', err);
+      return false;
+    } finally {
+      setIsSubmittingRating(false);
       setLastCallData(null);
-      router.replace('/(men)');
     }
-  }, [lastCallData, activeCall, userRating, router]);
+  }, [lastCallData]);
 
   const skipRating = React.useCallback(() => {
-    setShowRatingModal(false);
     setLastCallData(null);
-    router.replace('/(men)');
-  }, [router]);
+  }, []);
 
   const sendCallSignal = React.useCallback((type: string, data: any) => {
     if (engine.current && dataStreamId.current !== -1) {
@@ -525,9 +546,9 @@ export const CallProvider = ({ children }: { children?: React.ReactNode }) => {
   return (
     <CallContext.Provider value={{
       activeCall, isMinimized, seconds, remoteUid, isMuted, isSpeaker, isCameraOn,
-      showRatingModal, userRating, engine: engine.current,
+      userRating: 0, engine: engine.current, showRatingModal: false,
       startCall, endCall, minimizeCall, restoreCall, toggleMute, toggleSpeaker, toggleCamera,
-      setUserRating, submitRating, skipRating, isEngineReady, lastCallData, isSubmittingRating,
+      setUserRating: () => {}, submitRating, skipRating, isEngineReady, lastCallData, isSubmittingRating,
       lastSignal, sendCallSignal
     }}>
       {children}

@@ -262,6 +262,7 @@ export default function MenHome() {
   const [isMoreLoading, setIsMoreLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [besties, setBesties] = useState<FirestoreUser[]>([]);
+  const [realTimeLimit, setRealTimeLimit] = useState(15);
   const lastDocRef = useRef<any>(null);
   const { colors } = useTheme();
   const { appUser, loading } = useAuth();
@@ -272,17 +273,28 @@ export default function MenHome() {
   const [selectedCreator, setSelectedCreator] = useState<FirestoreUser | null>(null);
   const [isProcessingBestie, setIsProcessingBestie] = useState(false);
 
-  // Listen for female creators in real-time
+  // Real-time subscription for "Buddies" (Online Creators)
   useEffect(() => {
-    if (loading) return;
+    if (loading || activeTab !== 'Buddies') return;
 
+    setIsLoading(creators.length === 0);
+    
     const unsubscribe = subscribeToFemaleCreators((list) => {
       setCreators(list);
       setIsLoading(false);
-    }, 200);
+      setIsMoreLoading(false);
+      setRefreshing(false);
+      
+      // If we got fewer than requested, we might have reached the end
+      if (list.length < realTimeLimit) {
+        setHasMore(false);
+      } else {
+        setHasMore(true);
+      }
+    }, realTimeLimit);
 
     return () => unsubscribe();
-  }, [loading]);
+  }, [loading, activeTab, realTimeLimit]);
 
   // Listen for Bestie profiles specifically (regardless of online status)
   useEffect(() => {
@@ -298,10 +310,15 @@ export default function MenHome() {
     return () => unsubscribe();
   }, [loading, appUser?.besties]);
 
-  const onRefresh = () => {
+  const onRefresh = useCallback(() => {
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 1000);
-  };
+    if (activeTab === 'Buddies') {
+      setRealTimeLimit(15); // Reset limit to trigger refreshing the subscription
+      // The subscription useEffect will handle the rest
+    } else {
+      setTimeout(() => setRefreshing(false), 1000);
+    }
+  }, [activeTab]);
 
   const toggleBestie = useCallback(async (creatorId: string) => {
     if (!appUser?.id) return;
@@ -415,7 +432,10 @@ export default function MenHome() {
   }, [appUser, router]);
 
   const loadMore = async () => {
-    if (isMoreLoading || !hasMore || activeTab === 'Bestie') return;
+    if (isMoreLoading || !hasMore || activeTab === 'Bestie' || isLoading) return;
+    console.log('[Lazy Loading] Increasing real-time limit...');
+    setIsMoreLoading(true);
+    setRealTimeLimit(prev => prev + 15);
   };
 
   const filteredData = activeTab === 'Bestie' ? besties : creators;
@@ -473,6 +493,19 @@ export default function MenHome() {
           onEndReached={loadMore}
           onEndReachedThreshold={0.5}
           showsVerticalScrollIndicator={false}
+          ListFooterComponent={
+            isMoreLoading ? (
+              <View style={styles.footerLoader}>
+                <ActivityIndicator size="small" color="#FF4D67" />
+                <Text style={styles.footerLoaderText}>Searching the galaxy...</Text>
+              </View>
+            ) : !hasMore && filteredData.length > 0 ? (
+              <View style={styles.footerLoader}>
+                <Ionicons name="sparkles" size={16} color="#FFD700" />
+                <Text style={styles.footerLoaderText}>You've reached the end of the galaxy!</Text>
+              </View>
+            ) : null
+          }
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -867,8 +900,23 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   emptyText: {
-    color: '#808080',
-    fontSize: 18,
+    fontSize: 16,
+    marginTop: 12,
+    textAlign: 'center',
+    paddingHorizontal: 40,
+    lineHeight: 24,
+  },
+  footerLoader: {
+    paddingVertical: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  footerLoaderText: {
+    color: 'rgba(255,255,255,0.4)',
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 0.5,
   },
   recentSection: {
     paddingHorizontal: 20,

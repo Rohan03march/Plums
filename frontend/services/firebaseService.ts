@@ -1,5 +1,5 @@
 import { firebaseDb } from '../config/firebase';
-import { getFirestore, collection, addDoc, query, where, onSnapshot, doc, getDoc, setDoc, updateDoc, orderBy, QuerySnapshot, Timestamp, limit, DocumentSnapshot, arrayUnion, arrayRemove, startAfter, getDocs, query as firestoreQuery, documentId, increment, runTransaction } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, query, where, onSnapshot, doc, getDoc, setDoc, updateDoc, orderBy, QuerySnapshot, Timestamp, limit, DocumentSnapshot, arrayUnion, arrayRemove, startAfter, getDocs, query as firestoreQuery, documentId, increment, runTransaction, serverTimestamp } from 'firebase/firestore';
 
 export const formatFirebaseDate = (timestamp: any): string => {
   if (!timestamp) return 'Just now';
@@ -28,20 +28,22 @@ export interface User {
   isVideoOnline?: boolean;
   isProfileComplete?: boolean;
   paymentMethod?: 'upi' | 'card';
-  // Stats for women
+  earningBalance?: number;
+  rupeeBalance?: number;
+  todayEarnings?: number;
   allTimeEarnings?: number;
-  videoEarnings?: number;
   audioEarnings?: number;
+  videoEarnings?: number;
   giftEarnings?: number;
+  audioMinutes?: number;
+  videoMinutes?: number;
+  lastResetTime?: number;
   totalCalls?: number;
   talkTime?: number;
   rating?: number;
   avgRating?: number;
   sumRatings?: number;
   totalRatings?: number;
-  rupeeBalance?: number;
-  todayEarnings?: number;
-  lastResetTime?: number;
   giftSent?: number;
 }
 
@@ -669,7 +671,8 @@ export const executeCallTransfer = async (
       const receiverUpdates: any = {
         todayEarnings: increment(amount),
         allTimeEarnings: increment(amount),
-        rupeeBalance: increment(inrEarned)
+        rupeeBalance: increment(inrEarned),
+        earningBalance: increment(amount) // New field for withdrawable gold
       };
 
       if (normalizedType === 'audio') {
@@ -687,6 +690,29 @@ export const executeCallTransfer = async (
       }
 
       transaction.update(receiverRef, receiverUpdates);
+      
+      // 3. Record Transactions in Ledger
+      const receiverTxRef = doc(collection(firebaseDb, 'Transactions'));
+      transaction.set(receiverTxRef, {
+        userId: receiverId,
+        fromId: callerId,
+        amount: amount,
+        coins: amount,
+        type: 'call_earn',
+        details: `${normalizedType.toUpperCase()} CALL`,
+        timestamp: serverTimestamp()
+      });
+
+      const callerTxRef = doc(collection(firebaseDb, 'Transactions'));
+      transaction.set(callerTxRef, {
+        userId: callerId,
+        toId: receiverId,
+        amount: amount,
+        coins: amount,
+        type: 'call_pay',
+        details: `${normalizedType.toUpperCase()} CALL`,
+        timestamp: serverTimestamp()
+      });
     });
 
     return true;
@@ -847,12 +873,19 @@ export const getEarningsByPeriod = async (userId: string, period: 'today' | 'yes
       endDate = now;
     }
 
-    const q = query(
-      collection(firebaseDb, 'Transactions'),
+    const constraints: any[] = [
       where('userId', '==', userId),
       where('type', 'in', ['call_earn', 'gift_earn']),
       where('timestamp', '>=', Timestamp.fromDate(startDate)),
-      where('timestamp', '<=', Timestamp.fromDate(endDate))
+    ];
+
+    if (period === 'yesterday') {
+      constraints.push(where('timestamp', '<=', Timestamp.fromDate(endDate)));
+    }
+
+    const q = query(
+      collection(firebaseDb, 'Transactions'),
+      ...constraints
     );
 
     const snapshot = await getDocs(q);
@@ -867,47 +900,49 @@ export const getEarningsByPeriod = async (userId: string, period: 'today' | 'yes
   }
 };
 
-export const getEarningsBreakdownByPeriod = async (userId: string, period: 'today' | 'yesterday' | 'week' | 'month') => {
-  try {
-    const now = new Date();
-    let startDate: Date;
-    let endDate: Date;
+export const subscribeToEarningsBreakdown = (userId: string, period: 'today' | 'yesterday' | 'week' | 'lifetime', callback: (data: { audio: number; video: number; gift: number; total: number }) => void) => {
+  const now = new Date();
+  let startDate: Date;
+  let endDate: Date;
 
-    if (period === 'today') {
-      startDate = new Date();
-      startDate.setHours(0, 0, 0, 0);
-      endDate = now;
-    } else if (period === 'yesterday') {
-      startDate = new Date();
-      startDate.setDate(now.getDate() - 1);
-      startDate.setHours(0, 0, 0, 0);
-      
-      endDate = new Date();
-      endDate.setDate(now.getDate() - 1);
-      endDate.setHours(23, 59, 59, 999);
-    } else if (period === 'week') {
-      startDate = new Date();
-      startDate.setDate(now.getDate() - 7);
-      startDate.setHours(0, 0, 0, 0);
-      endDate = now;
-    } else { // month
-      startDate = new Date();
-      startDate.setMonth(now.getMonth() - 1);
-      startDate.setHours(0, 0, 0, 0);
-      endDate = now;
-    }
+  if (period === 'today') {
+    startDate = new Date();
+    startDate.setHours(0, 0, 0, 0);
+    endDate = now;
+  } else if (period === 'yesterday') {
+    startDate = new Date();
+    startDate.setDate(now.getDate() - 1);
+    startDate.setHours(0, 0, 0, 0);
+    endDate = new Date();
+    endDate.setDate(now.getDate() - 1);
+    endDate.setHours(23, 59, 59, 999);
+  } else if (period === 'week') {
+    startDate = new Date();
+    startDate.setDate(now.getDate() - 7);
+    startDate.setHours(0, 0, 0, 0);
+    endDate = now;
+  } else { // lifetime
+    startDate = new Date(2024, 0, 1);
+    endDate = now;
+  }
 
-    const q = query(
-      collection(firebaseDb, 'Transactions'),
-      where('userId', '==', userId),
-      where('type', 'in', ['call_earn', 'gift_earn', 'gift']), // Checking 'gift' for legacy
-      where('timestamp', '>=', Timestamp.fromDate(startDate)),
-      where('timestamp', '<=', Timestamp.fromDate(endDate))
-    );
+  const constraints: any[] = [
+    where('userId', '==', userId),
+    where('type', 'in', ['call_earn', 'gift_earn', 'gift']),
+    where('timestamp', '>=', Timestamp.fromDate(startDate)),
+  ];
 
-    const snapshot = await getDocs(q);
+  if (period === 'yesterday') {
+    constraints.push(where('timestamp', '<=', Timestamp.fromDate(endDate)));
+  }
+
+  const q = query(
+    collection(firebaseDb, 'Transactions'),
+    ...constraints
+  );
+
+  return onSnapshot(q, (snapshot) => {
     const breakdown = { audio: 0, video: 0, gift: 0, total: 0 };
-    
     snapshot.forEach(doc => {
       const data = doc.data();
       const coins = data.coins || 0;
@@ -924,10 +959,9 @@ export const getEarningsBreakdownByPeriod = async (userId: string, period: 'toda
         }
       }
     });
-    
-    return breakdown;
-  } catch (error) {
-    console.error(`Error fetching earnings breakdown for ${period}:`, error);
-    return { audio: 0, video: 0, gift: 0, total: 0 };
-  }
+    callback(breakdown);
+  }, (error) => {
+    console.error("Error subscribing to earnings breakdown:", error);
+    callback({ audio: 0, video: 0, gift: 0, total: 0 });
+  });
 };

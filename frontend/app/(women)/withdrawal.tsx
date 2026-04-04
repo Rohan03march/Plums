@@ -71,16 +71,8 @@ export default function Withdrawal() {
     return () => unsubscribe();
   }, [appUser?.id]);
 
-  const totalEarned = (appUser?.audioEarnings || 0) + (appUser?.videoEarnings || 0) + (appUser?.giftEarnings || 0);
-  const factor = totalEarned > 0 ? Math.min(1, (appUser?.coins || 0) / totalEarned) : 0;
-
-  const rupeeValue = (
-    ((appUser?.audioEarnings || 0) * factor * 0.14) +
-    ((appUser?.videoEarnings || 0) * factor * 0.10) +
-    ((appUser?.giftEarnings || 0) * factor * 0.10)
-  );
-
-  const totalCoins = appUser?.coins || 0;
+  const totalCoins = appUser?.earningBalance || 0;
+  const rupeeValue = appUser?.rupeeBalance || 0;
   const minimumWithdrawal = 50;
 
   const handleWithdraw = async () => {
@@ -124,16 +116,11 @@ export default function Withdrawal() {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'Failed to submit request');
 
-      const ratio = Math.min(1, reqAmount / rupeeValue);
-      const audioToSub = Math.floor((appUser?.audioEarnings || 0) * ratio);
-      const videoToSub = Math.floor((appUser?.videoEarnings || 0) * ratio);
-      const giftsToSub = Math.floor((appUser?.giftEarnings || 0) * ratio);
-
       if (appUser?.id) {
+        // Atomic subtraction from both balances
         await updateDoc(doc(firebaseDb, 'Users', appUser.id), {
-          audioEarnings: increment(-audioToSub),
-          videoEarnings: increment(-videoToSub),
-          giftEarnings: increment(-giftsToSub),
+          earningBalance: increment(-coinsToDeduct),
+          rupeeBalance: increment(-reqAmount),
         });
       }
 
@@ -218,15 +205,11 @@ export default function Withdrawal() {
               <Text style={styles.balanceRs}>₹ {rupeeValue.toFixed(2)}</Text>
               <View style={styles.miniBreakdown}>
                 <View style={styles.miniItem}>
-                  <Text style={styles.miniLabel}>Audio: ₹{((appUser?.audioEarnings || 0) * factor * 0.14).toFixed(2)}</Text>
+                  <Text style={styles.miniLabel}>Available Gold: {totalCoins.toLocaleString()}</Text>
                 </View>
                 <View style={styles.miniDivider} />
                 <View style={styles.miniItem}>
-                  <Text style={styles.miniLabel}>Video: ₹{((appUser?.videoEarnings || 0) * factor * 0.10).toFixed(2)}</Text>
-                </View>
-                <View style={styles.miniDivider} />
-                <View style={styles.miniItem}>
-                  <Text style={styles.miniLabel}>Gift: ₹{((appUser?.giftEarnings || 0) * factor * 0.10).toFixed(2)}</Text>
+                  <Text style={styles.miniLabel}>Verified: {appUser?.displayName?.split(' ')[0]}</Text>
                 </View>
               </View>
             </View>

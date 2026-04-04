@@ -15,7 +15,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
-import { updateUserPresence, getAvatarSource, migrateUserRupeeBalance, subscribeToPendingPayout, moveTodayEarningsToBalance, getEarningsByPeriod, getEarningsBreakdownByPeriod } from '../../services/firebaseService';
+import { updateUserPresence, getAvatarSource, migrateUserRupeeBalance, subscribeToPendingPayout, moveTodayEarningsToBalance, subscribeToEarningsBreakdown } from '../../services/firebaseService';
 
 const { width } = Dimensions.get('window');
 
@@ -97,31 +97,24 @@ export default function WomenHome() {
     return () => unsubscribePayout();
   }, [loading, user, appUser]);
 
-  // Fetch earnings for period
+
+  // Real-time Earnings Subscription
   useEffect(() => {
-    if (!user || !appUser) return;
+    if (!appUser || appUser.role !== 'woman') return;
+    
+    // Subscribe to earnings breakdown for the selected period
+    const unsubscribeEarnings = subscribeToEarningsBreakdown(appUser.id, selectedPeriod, (breakdown) => {
+      setPeriodEarnings(breakdown.total);
+      setPeriodBreakdown({
+        audio: breakdown.audio,
+        video: breakdown.video,
+        gift: breakdown.gift
+      });
+    });
+    
+    return () => unsubscribeEarnings();
+  }, [appUser?.id, selectedPeriod]);
 
-    const fetchPeriodData = async () => {
-      if (selectedPeriod === 'lifetime') {
-        setPeriodEarnings(appUser.allTimeEarnings || 0);
-        setPeriodBreakdown({
-          audio: appUser.audioEarnings || 0,
-          video: appUser.videoEarnings || 0,
-          gift: appUser.giftEarnings || 0
-        });
-      } else {
-        const breakdown = await getEarningsBreakdownByPeriod(user.uid, selectedPeriod);
-        setPeriodEarnings(breakdown.total);
-        setPeriodBreakdown({
-          audio: breakdown.audio,
-          video: breakdown.video,
-          gift: breakdown.gift
-        });
-      }
-    };
-
-    fetchPeriodData();
-  }, [selectedPeriod, user, appUser?.audioEarnings, appUser?.videoEarnings, appUser?.giftEarnings, appUser?.allTimeEarnings, appUser?.todayEarnings]);
 
   const handleAudioToggle = async (value: boolean) => {
     if (!user) return;
@@ -194,7 +187,7 @@ export default function WomenHome() {
           >
             <FontAwesome5 name="coins" size={14} color="#FFD700" />
             <Text style={[styles.coinBalanceText, { color: isDark ? '#FFD700' : '#D97706' }]}>
-              {appUser?.coins?.toLocaleString() || '0'}
+              {appUser?.earningBalance?.toLocaleString() || '0'}
             </Text>
           </TouchableOpacity>
         </Animated.View>
@@ -301,7 +294,7 @@ export default function WomenHome() {
                       <Ionicons name={cat.icon as any} size={14} color={cat.color} />
                       <Text style={[styles.earningLabel, { color: cat.color }]}>{cat.label}</Text>
                     </View>
-                    <Text style={[styles.earningValueINR, { color: colors.text }]}>₹{cat.rupees.toFixed(0)}</Text>
+                    <Text style={[styles.earningValueINR, { color: colors.text }]}>₹{cat.rupees.toFixed(2)}</Text>
                     <Text style={styles.earningValueCoins}>{cat.coins.toLocaleString()} Gold</Text>
                   </View>
                 ));

@@ -1,4 +1,5 @@
 # Dependencies
+**/node_modules/
 node_modules/
 
 # Expo
@@ -11,6 +12,8 @@ web-build/
 # Native folders
 android/
 ios/
+**/android/build/
+**/ios/build/
 
 # Git
 .git/

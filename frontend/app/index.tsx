@@ -31,19 +31,19 @@ export default function SplashScreen() {
   const footerOpacity = useSharedValue(0);
 
   useEffect(() => {
-    // Logo fades in with a gentle scale
-    logoOpacity.value = withTiming(1, { duration: 1000, easing: Easing.out(Easing.quad) });
-    logoScale.value = withSpring(1, { damping: 18, stiffness: 50 });
+    // Logo fades in faster
+    logoOpacity.value = withTiming(1, { duration: 600, easing: Easing.out(Easing.quad) });
+    logoScale.value = withSpring(1, { damping: 15, stiffness: 60 });
 
-    // Title slides up
-    titleOpacity.value = withDelay(600, withTiming(1, { duration: 700 }));
-    titleY.value = withDelay(600, withSpring(0, { damping: 20, stiffness: 55 }));
+    // Title slides up much sooner
+    titleOpacity.value = withDelay(150, withTiming(1, { duration: 400 }));
+    titleY.value = withDelay(150, withSpring(0, { damping: 18, stiffness: 60 }));
 
-    // Slogan fades in after title
-    sloganOpacity.value = withDelay(1000, withTiming(1, { duration: 700 }));
+    // Slogan follows immediately
+    sloganOpacity.value = withDelay(400, withTiming(1, { duration: 400 }));
 
     // Footer last
-    footerOpacity.value = withDelay(1400, withTiming(1, { duration: 600 }));
+    footerOpacity.value = withDelay(600, withTiming(1, { duration: 400 }));
   }, []);
 
   useEffect(() => {
@@ -59,7 +59,7 @@ export default function SplashScreen() {
           const hasSeenOnboarding = await AsyncStorage.getItem('hasSeenOnboarding');
           router.replace(hasSeenOnboarding === 'true' ? '/login' : '/onboarding');
         }
-      }, 3500);
+      }, 1000);
       return () => clearTimeout(timer);
     }
   }, [loading, user, appUser]);

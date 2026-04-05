@@ -1,22 +1,35 @@
-# Exclude siblings and git history
-../admin-dashboard/
-../.git/
-.git/
-
-# Standard Expo Exclusions
+# Dependencies
 node_modules/
+
+# Expo
 .expo/
+.expo-shared/
 dist/
 build/
+web-build/
 
-# Android only
-ios/
+# Native folders
 android/
+ios/
 
-# Assets & Files
-*.apk
-*.ipa
-.env.local
-.env.*.local
+# Git
+.git/
+.gitignore
+
+# Environment
 .env
-.vscode
+.env.*
+.env.local
+
+# IDE
+.vscode/
+.idea/
+
+# Build files
+*.apk
+*.aab
+*.ipa
+
+# Misc
+.DS_Store
+Thumbs.db

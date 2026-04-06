@@ -52,7 +52,20 @@
       "expo-secure-store",
       "expo-splash-screen",
       "./plugins/withRemovePermissions.js",
-      "./plugins/withForegroundService.js"
+      "./plugins/withForegroundService.js",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "buildToolsVersion": "35.0.0",
+            "extraMavenRepos": [
+              "../../node_modules/@notifee/react-native/android/libs"
+            ]
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

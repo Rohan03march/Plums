@@ -23,10 +23,9 @@
         "CAMERA",
         "RECORD_AUDIO",
         "MODIFY_AUDIO_SETTINGS",
-        "FOREGROUND_SERVICE"
-      ],
-      "blockedPermissions": [
-        "android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION"
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_CAMERA",
+        "FOREGROUND_SERVICE_MICROPHONE"
       ],
       "splash": {
         "image": "./assets/images/friend_plums.png",
@@ -50,8 +49,8 @@
       "expo-asset",
       "expo-font",
       "expo-secure-store",
-      "expo-secure-store",
-      "expo-splash-screen"
+      "expo-splash-screen",
+      "./plugins/withRemovePermissions.js"
     ],
     "experiments": {
       "typedRoutes": true,

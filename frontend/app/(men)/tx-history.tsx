@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
@@ -177,12 +177,17 @@ export default function TransactionHistory() {
           </>
         }
         ListEmptyComponent={
-          !isDataLoading ? (
+          isDataLoading ? (
+            <View style={styles.emptyContainer}>
+              <ActivityIndicator size="large" color="#FF4D67" />
+              <Text style={[styles.emptyText, { color: colors.subText, marginTop: 10 }]}>Please wait...</Text>
+            </View>
+          ) : (
             <View style={styles.emptyContainer}>
               <Ionicons name="receipt-outline" size={64} color={colors.subText} />
               <Text style={[styles.emptyText, { color: colors.subText }]}>No transactions found for this category.</Text>
             </View>
-          ) : null
+          )
         }
       />
     </View>

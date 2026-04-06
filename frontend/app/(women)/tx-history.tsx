@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, FlatList, RefreshControl, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, FlatList, RefreshControl, TouchableOpacity, Dimensions, ActivityIndicator } from 'react-native';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useRouter, Stack } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -68,7 +68,7 @@ const TransactionItem = memo(({ item, colors, isCredit, statusColor, typeLabel, 
         <View style={styles.titleRow}>
           <Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>{typeLabel}</Text>
           <View style={[styles.statusBadge, { backgroundColor: `${statusColor}15`, borderColor: `${statusColor}30` }]}>
-            <Text style={[styles.statusText, { color: statusColor }]}>{item.status}</Text>
+            <Text style={[styles.statusText, { color: statusColor }]}>{item.status || 'Success'}</Text>
           </View>
         </View>
         
@@ -86,7 +86,7 @@ const TransactionItem = memo(({ item, colors, isCredit, statusColor, typeLabel, 
         </Text>
         <FontAwesome5 name="coins" size={10} color="#FFD700" />
       </View>
-      <Text style={styles.amount}>₹{Number(item.amountInRupees).toFixed(2)}</Text>
+      <Text style={styles.amount}>₹{(Number(item.amountInRupees) || (Number(item.coins) / 10) || 0).toFixed(2)}</Text>
     </View>
   </Animated.View>
 ));
@@ -170,18 +170,21 @@ export default function WithdrawalHistory() {
 
   const renderItem = useCallback(({ item, index }: { item: Transaction, index: number }) => {
     const isCredit = item.type === 'call_earn' || item.type === 'gift_earn' || item.type === 'deposit' || item.type === 'refund';
-    const statusColor = item.status === 'success' ? '#4CAF50' : item.status === 'pending' ? '#FFD700' : '#FF4D67';
+    const status = item.status || 'success';
+    const statusColor = status === 'success' ? '#4CAF50' : status === 'pending' ? '#FFD700' : '#FF4D67';
     const typeLabel = item.type === 'withdrawal' ? 'Withdrawal' : (item.type === 'refund' ? 'Refund' : (item.type === 'deposit' ? 'Deposit' : (item.type === 'gift_earn' ? 'Gift Received' : 'Call Earning')));
 
     return (
-      <TransactionItem
-        item={item}
-        colors={colors}
-        isCredit={isCredit}
-        statusColor={statusColor}
-        typeLabel={typeLabel}
-        index={index}
-      />
+      <View style={{ width: '100%' }}>
+        <TransactionItem
+          item={item}
+          colors={colors}
+          isCredit={isCredit}
+          statusColor={statusColor}
+          typeLabel={typeLabel}
+          index={index}
+        />
+      </View>
     );
   }, [colors]);
 
@@ -263,12 +266,19 @@ export default function WithdrawalHistory() {
         }
 
         ListEmptyComponent={
-          !loading ? (
+          isDataLoading ? (
+            <View style={styles.emptyContainer}>
+              <ActivityIndicator size="large" color="#FF4D67" />
+              <Text style={[styles.emptyText, { color: colors.subText, marginTop: 10 }]}>
+                Please wait...
+              </Text>
+            </View>
+          ) : (
             <View style={styles.emptyContainer}>
               <Ionicons name="receipt-outline" size={64} color={colors.subText} />
               <Text style={[styles.emptyText, { color: colors.subText }]}>No transactions yet.</Text>
             </View>
-          ) : null
+          )
         }
       />
     </View>

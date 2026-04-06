@@ -3,10 +3,30 @@ import { getFirestore, collection, addDoc, query, where, onSnapshot, doc, getDoc
 
 export const formatFirebaseDate = (timestamp: any): string => {
   if (!timestamp) return 'Just now';
-  if (typeof timestamp === 'number') return new Date(timestamp).toLocaleString();
-  if (timestamp.toDate) return timestamp.toDate().toLocaleString();
-  if (timestamp.seconds) return new Date(timestamp.seconds * 1000).toLocaleString();
-  return String(timestamp);
+  
+  let date: Date;
+  if (typeof timestamp === 'number') {
+    date = new Date(timestamp);
+  } else if (timestamp.toDate) {
+    date = timestamp.toDate();
+  } else if (timestamp.seconds) {
+    date = new Date(timestamp.seconds * 1000);
+  } else {
+    return String(timestamp);
+  }
+
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  
+  // Format time as 09:30 AM
+  const hours = date.getHours();
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  const displayHours = hours % 12 || 12;
+  const timeStr = `${displayHours}:${minutes} ${ampm}`;
+
+  return `${day}/${month}/${year} ${timeStr}`;
 };
 export interface User {
   id: string;
@@ -701,7 +721,9 @@ export const executeCallTransfer = async (
         fromId: callerId,
         amount: amount,
         coins: amount,
+        amountInRupees: amount / 10,
         type: 'call_earn',
+        status: 'success',
         details: `${normalizedType.toUpperCase()} CALL`,
         timestamp: serverTimestamp()
       });
@@ -712,7 +734,9 @@ export const executeCallTransfer = async (
         toId: receiverId,
         amount: amount,
         coins: amount,
+        amountInRupees: amount / 10,
         type: 'call_pay',
+        status: 'success',
         details: `${normalizedType.toUpperCase()} CALL`,
         timestamp: serverTimestamp()
       });

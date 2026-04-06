@@ -10,7 +10,7 @@ module.exports = function withForegroundService(config) {
     }
 
     // Add or Update Notifee Foreground Service
-    const serviceName = "com.dexterous.flutter.external.notifee.ForegroundService";
+    const serviceName = "app.notifee.core.ForegroundService";
     let service = application.service.find((s) => s.$["android:name"] === serviceName);
 
     if (!service) {
@@ -19,12 +19,12 @@ module.exports = function withForegroundService(config) {
           "android:name": serviceName,
           "android:enabled": "true",
           "android:exported": "false",
-          "android:foregroundServiceType": "camera|microphone|phoneCall",
+          "android:foregroundServiceType": "camera|microphone|phoneCall|specialUse",
         },
       };
       application.service.push(service);
     } else {
-      service.$["android:foregroundServiceType"] = "camera|microphone|phoneCall";
+      service.$["android:foregroundServiceType"] = "camera|microphone|phoneCall|specialUse";
     }
 
     return config;

@@ -26,9 +26,6 @@
         "FOREGROUND_SERVICE",
         "FOREGROUND_SERVICE_CAMERA",
         "FOREGROUND_SERVICE_MICROPHONE",
-        "FOREGROUND_SERVICE_PHONE_CALL",
-        "MANAGE_OWN_CALLS",
-        "READ_PHONE_STATE",
         "POST_NOTIFICATIONS"
       ],
       "splash": {

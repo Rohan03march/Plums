@@ -27,7 +27,6 @@ export const startCallForegroundService = async (userName: string, callType: 'au
         foregroundServiceTypes: [
           AndroidForegroundServiceType.FOREGROUND_SERVICE_TYPE_MICROPHONE,
           AndroidForegroundServiceType.FOREGROUND_SERVICE_TYPE_CAMERA,
-          AndroidForegroundServiceType.FOREGROUND_SERVICE_TYPE_PHONE_CALL,
         ],
       },
     });

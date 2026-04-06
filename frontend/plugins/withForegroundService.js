@@ -20,13 +20,13 @@ module.exports = function withForegroundService(config) {
           "android:name": serviceName,
           "android:enabled": "true",
           "android:exported": "false",
-          "android:foregroundServiceType": "camera|microphone|phoneCall|specialUse",
+          "android:foregroundServiceType": "camera|microphone",
           "tools:replace": "android:foregroundServiceType",
         },
       };
       application.service.push(service);
     } else {
-      service.$["android:foregroundServiceType"] = "camera|microphone|phoneCall|specialUse";
+      service.$["android:foregroundServiceType"] = "camera|microphone";
       service.$["tools:replace"] = "android:foregroundServiceType";
     }
 

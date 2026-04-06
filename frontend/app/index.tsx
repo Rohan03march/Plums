@@ -59,7 +59,7 @@ export default function SplashScreen() {
           const hasSeenOnboarding = await AsyncStorage.getItem('hasSeenOnboarding');
           router.replace(hasSeenOnboarding === 'true' ? '/login' : '/onboarding');
         }
-      }, 1000);
+      }, 1500);
       return () => clearTimeout(timer);
     }
   }, [loading, user, appUser]);

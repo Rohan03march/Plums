@@ -2,7 +2,7 @@
   "expo": {
     "name": "Plums",
     "slug": "Plums",
-    "version": "1.0.4",
+    "version": "1.0.5",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "frontend",
@@ -39,7 +39,10 @@
       },
       "edgeToEdgeEnabled": true,
       "launchMode": "singleTask",
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "blockedPermissions": [
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION"
+      ]
     },
     "web": {
       "output": "static",

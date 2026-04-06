@@ -1,21 +1,35 @@
 const { withAndroidManifest } = require("@expo/config-plugins");
 
-/**
- * Force-removes the MEDIA_PROJECTION permission and any service types
- * associated with it to prevent Google Play Store rejections.
- */
 module.exports = function withRemovePermissions(config) {
   return withAndroidManifest(config, (config) => {
     const mainManifest = config.modResults.manifest;
 
-    // 1. Remove the permission completely
-    if (mainManifest["uses-permission"]) {
-      mainManifest["uses-permission"] = mainManifest["uses-permission"].filter(
-        (perm) => perm.$["android:name"] !== "android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION"
-      );
+    // 1. Ensure the 'tools' namespace exists so we can use tools:node="remove"
+    mainManifest.$ = {
+      ...mainManifest.$,
+      "xmlns:tools": "http://schemas.android.com/tools",
+    };
+
+    // 2. Add the permission with a "remove" instruction
+    // This tells the Android Merger to strip it out even if an SDK adds it
+    if (!mainManifest["uses-permission"]) {
+      mainManifest["uses-permission"] = [];
     }
 
-    // 2. Remove 'mediaProjection' type from any <service> tags
+    // First, filter out any existing instances to avoid duplicates
+    mainManifest["uses-permission"] = mainManifest["uses-permission"].filter(
+      (perm) => perm.$["android:name"] !== "android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION"
+    );
+
+    // Now add it back with the 'remove' command
+    mainManifest["uses-permission"].push({
+      $: {
+        "android:name": "android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION",
+        "tools:node": "remove",
+      },
+    });
+
+    // 3. Deep clean services (remove the type 'mediaProjection' from any service)
     const application = mainManifest.application?.[0];
     if (application && application.service) {
       application.service.forEach((service) => {
@@ -26,7 +40,6 @@ module.exports = function withRemovePermissions(config) {
           if (filteredTypes.length > 0) {
             service.$["android:foregroundServiceType"] = filteredTypes.join("|");
           } else {
-            // If it was ONLY mediaProjection, remove the attribute entirely
             delete service.$["android:foregroundServiceType"];
           }
         }

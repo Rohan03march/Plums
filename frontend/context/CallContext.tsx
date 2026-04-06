@@ -20,6 +20,7 @@ import {
   updateCreatorRating
 } from '../services/firebaseService';
 import { useAuth } from './AuthContext';
+import { startCallForegroundService, stopCallForegroundService } from '../utils/backgroundService';
 
 interface CallContextType {
   activeCall: CallSession | null;
@@ -123,6 +124,7 @@ export const CallProvider = ({ children }: { children?: React.ReactNode }) => {
     }
     dataStreamId.current = -1;
     setLastSignal(null);
+    stopCallForegroundService();
   }, []);
 
   // Timer logic - start only when both connected and signaled
@@ -336,6 +338,7 @@ export const CallProvider = ({ children }: { children?: React.ReactNode }) => {
         wasAcceptedRef.current = true;
       }
       if (!updatedSession || updatedSession.status === 'ended' || updatedSession.status === 'rejected') {
+        stopCallForegroundService();
         handleCallTermination(updatedSession, role);
       }
     });
@@ -453,6 +456,10 @@ export const CallProvider = ({ children }: { children?: React.ReactNode }) => {
     
     if (joinCode !== 0) {
       console.error('[Agora Context] joinChannel failed with code:', joinCode);
+    } else {
+      // Start foreground service to keep call alive
+      const targetName = role === 'caller' ? activeCall?.receiverName : activeCall?.callerName;
+      startCallForegroundService(targetName || 'Partner', type);
     }
 
 
